@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterviewAI — AI-Powered Interview Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', system-ui, sans-serif; }
+        body {
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+        .minimal-card {
+            background: #111827;
+            border: 1px solid #1f293d;
+            border-radius: 20px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        }
+        .upload-zone {
+            border: 2px dashed #2d3748;
+            transition: all 0.25s ease;
+            background: #0d1322;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.08);
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.35; }
+        }
+        .fade-in { animation: fadeIn 0.4s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="min-h-screen bg-[#0b0f19] text-slate-100">
+
+    <!-- Header -->
+    <nav class="bg-[#0e1424] border-b border-[#1f293d] px-6 py-4 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-md shadow-blue-900/30">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                    </svg>
+                </div>
+                <div>
+                    <span class="text-xl font-bold tracking-tight text-white">InterviewAI</span>
+                </div>
+            </div>
+            <span class="text-xs uppercase tracking-wider font-semibold text-slate-400">Autonomous Interview Platform</span>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-6 py-14">
+        
+        <!-- Hero -->
+        <div class="text-center mb-14 fade-in">
+            <div class="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 mb-5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                <span class="text-xs font-semibold uppercase tracking-wider text-blue-400">AI Interview System Active</span>
+            </div>
+            <h1 class="text-4xl md:text-5xl font-extrabold tracking-tight text-white mb-4">
+                Prepare. Practice. <span class="text-blue-500">Perform.</span>
+            </h1>
+            <p class="text-base md:text-lg text-slate-400 max-w-2xl mx-auto leading-relaxed">
+                Upload your resume, specify your target role, and enter a realistic interview session with adaptive questioning, proctoring, and comprehensive feedback.
+            </p>
+        </div>
+
+        <!-- Setup Card -->
+        <div class="minimal-card p-8 md:p-10 fade-in" id="uploadCard">
+            <div class="mb-8 pb-4 border-b border-[#1f293d] flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Interview Setup</h2>
+                    <p class="text-sm text-slate-400 mt-1">Configure your candidate profile to begin</p>
+                </div>
+                <span class="text-xs font-medium px-3 py-1 bg-slate-800 text-slate-300 rounded-full border border-slate-700">Step 1 of 2</span>
+            </div>
+            
+            <form id="uploadForm" class="space-y-6">
+                <!-- Resume Upload Option -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-slate-200">
+                        Resume Document (PDF)
+                    </label>
+                    <div class="upload-zone rounded-2xl p-8 text-center cursor-pointer" id="dropZone">
+                        <input type="file" id="resumeFile" accept=".pdf" class="hidden">
+                        <div id="uploadPlaceholder">
+                            <div class="w-12 h-12 mx-auto rounded-full bg-blue-500/10 text-blue-400 flex items-center justify-center mb-3 border border-blue-500/20">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                            </div>
+                            <p class="text-slate-200 font-semibold text-sm">
+                                Drop your resume here, or <span class="text-blue-400 underline underline-offset-2">browse files</span>
+                            </p>
+                            <p class="text-slate-400 text-xs mt-1">PDF format up to 10MB</p>
+                        </div>
+                        <div id="uploadSuccess" class="hidden">
+                            <div class="w-12 h-12 mx-auto rounded-full bg-emerald-500/15 text-emerald-400 flex items-center justify-center mb-3 border border-emerald-500/30">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                            </div>
+                            <p class="text-emerald-400 font-semibold text-sm" id="fileName"></p>
+                            <p class="text-slate-400 text-xs mt-1">Click to select a different file</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Target Role Option -->
+                <div class="space-y-2">
+                    <label class="block text-sm font-semibold text-slate-200">Target Role</label>
+                    <input type="text" id="roleInput" 
+                        placeholder="e.g. Senior Backend Engineer, Product Manager, Data Scientist"
+                        class="w-full bg-[#0d1322] border border-[#1f293d] rounded-xl px-4 py-3.5 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:bg-[#10172a] focus:ring-1 focus:ring-blue-500 transition text-sm">
+                </div>
+
+                <!-- Action Button -->
+                <div class="pt-2">
+                    <button type="submit" id="submitBtn"
+                        class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-950/40 text-base"
+                        disabled>
+                        <span id="btnText">Upload & Analyze Resume</span>
+                        <svg id="btnSpinner" class="hidden animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Resume Summary (shown after upload) -->
+        <div id="summaryCard" class="hidden minimal-card p-8 md:p-10 mt-8 fade-in">
+            <div class="flex items-center justify-between mb-6 pb-4 border-b border-[#1f293d]">
+                <div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Resume Profile Analysis</h2>
+                    <p class="text-sm text-slate-400 mt-1">Review parsed candidate attributes before entering the interview</p>
+                </div>
+                <span class="inline-flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-500/20">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Verified
+                </span>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div class="bg-[#0d1322] border border-[#1f293d] rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Candidate</p>
+                    <p class="text-base font-bold text-white" id="summaryName">—</p>
+                </div>
+                <div class="bg-[#0d1322] border border-[#1f293d] rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Experience</p>
+                    <p class="text-base font-bold text-white" id="summaryExp">—</p>
+                </div>
+                <div class="bg-[#0d1322] border border-[#1f293d] rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Current Role</p>
+                    <p class="text-base font-bold text-white" id="summaryRole">—</p>
+                </div>
+                <div class="bg-[#0d1322] border border-[#1f293d] rounded-xl p-4">
+                    <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Education</p>
+                    <p class="text-base font-bold text-white" id="summaryEdu">—</p>
+                </div>
+            </div>
+
+            <div class="mb-6">
+                <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-2">Identified Core Skills</p>
+                <div class="flex flex-wrap gap-2" id="summarySkills"></div>
+            </div>
+
+            <div class="mb-8 bg-[#0d1322] border border-[#1f293d] rounded-xl p-4">
+                <p class="text-xs text-slate-400 uppercase tracking-wider font-semibold mb-1">Background Synopsis</p>
+                <p class="text-sm text-slate-300 leading-relaxed" id="summarySummary">—</p>
+            </div>
+
+            <button id="startInterviewBtn"
+                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-4 px-6 rounded-xl transition duration-200 flex items-center justify-center gap-2 shadow-lg shadow-blue-950/40 text-base">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+                <span>Proceed to Live Interview</span>
+            </button>
+        </div>
+
+        <!-- Minimal Three Pillars -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-14 fade-in">
+            <div class="minimal-card p-6 text-center">
+                <div class="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-white text-sm mb-1">Profile-Aware Questions</h3>
+                <p class="text-xs text-slate-400 leading-relaxed">Adapts dynamically to the candidate's exact experience level and domain.</p>
+            </div>
+            <div class="minimal-card p-6 text-center">
+                <div class="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-white text-sm mb-1">Adaptive Dialogue</h3>
+                <p class="text-xs text-slate-400 leading-relaxed">Probes deeper into reasoning and code architecture without canned scripts.</p>
+            </div>
+            <div class="minimal-card p-6 text-center">
+                <div class="w-10 h-10 bg-blue-500/10 text-blue-400 rounded-xl flex items-center justify-center mx-auto mb-3 border border-blue-500/20">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
+                <h3 class="font-bold text-white text-sm mb-1">Integrity & Proctoring</h3>
+                <p class="text-xs text-slate-400 leading-relaxed">Webcam attention detection and tab-focus telemetry for fair evaluation.</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/upload.js"></script>
+</body>
+</html>
