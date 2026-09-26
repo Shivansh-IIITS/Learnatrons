@@ -1,0 +1,200 @@
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-family: Arial, sans-serif;
+}
+
+.landing-page h1 {
+  font-size: 78px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  margin-bottom: 25px;
+  margin-top: -30px;
+  color: #183b70;
+}
+
+.landing-page p {
+  font-size: 24px;
+  margin-bottom: 45px;
+  color: #58749b;
+}
+
+.option-card {
+  width: 380px;
+  height: 170px;
+  border-radius: 25px;
+  border: 1px solid #d6e2f2;
+  background: linear-gradient(145deg, #ffffff, #edf5ff);
+  color: #183b70;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  box-shadow: 0 12px 30px rgba(30, 58, 138, 0.12);
+  transition: all 0.25s ease;
+}
+
+.option-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(30, 58, 138, 0.2);
+  border-color: #9bbce8;
+}
+
+.option-card:active {
+  transform: translateY(-3px);
+}
+.options {
+  display: flex;
+  gap: 45px;
+  margin-top: 15px;
+}
+
+/*Start INterview*/
+.setup-box {
+  width: 700px;
+  padding: 45px 55px;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #ffffff, #f1f6ff);
+  border: 1px solid #d6e2f2;
+  box-shadow: 0 15px 35px rgba(30, 58, 138, 0.12);
+  text-align: left;
+}
+
+.setup-option {
+  margin-bottom: 32px;
+}
+
+.setup-option:last-child {
+  margin-bottom: 0;
+}
+
+
+.file-button input {
+  display: none;
+}
+
+.setup-option p {
+  font-size: 28px;
+  font-weight: 600;
+  color: #183b70;
+  margin-bottom: 18px;
+}
+
+.file-button {
+  display: inline-block;
+  padding: 16px 30px;
+  border-radius: 16px;
+  background: #183b70;
+  color: white;
+  font-size: 20px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.job-input {
+  width: 100%;
+  height: 58px;
+  padding: 15px 20px;
+  border-radius: 16px;
+  border: 1px solid #c9d7e8;
+  background: white;
+  color: #183b70;
+  font-size: 20px;
+}
+.job-input:focus {
+  border-color: #6f9fd8;
+  box-shadow: 0 0 0 3px rgba(111, 159, 216, 0.15);
+}
+
+.job-input::placeholder {
+  color: #9aaabd;
+}
+
+.proceed-button {
+  margin-top: 35px;
+  width: 300px;
+  height: 65px;
+  border-radius: 20px;
+  border: none;
+  background: #183b70;
+  color: white;
+  font-size: 23px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 10px 25px rgba(30, 58, 138, 0.18);
+  transition: 0.25s ease;
+}
+
+.proceed-button:hover {
+  background: #285594;
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px rgba(30, 58, 138, 0.25);
+}
+/*BasicInstructions*/
+.instruc{
+  color: rgb(189, 180, 180)
+}
+.instructions-box {
+  width: 750px;
+  color:rgba(0, 0, 8, 0.9);
+  padding: 35px 45px;
+  border-radius: 25px;
+  background: rgb(189, 180, 180);
+  border: 1px solid #ddd;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  text-align: left;
+}
+
+.instructions-box > p {
+  font-size: 23px;
+  font-weight: 600;
+  margin-bottom: 25px;
+}
+
+.instructions-box ul {
+  padding-left: 25px;
+}
+
+.instructions-box li {
+  font-size: 18px;
+  line-height: 1.6;
+  margin-bottom: 15px;
+}
+/*interview*/
+.interview-page {
+  min-height: 100vh;
+  padding: 30px 50px;
+}
+
+.interview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 40px;
+}
+
+.interview-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.interview-header span {
+  font-size: 20px;
+}
+
+.interview-status {
+  text-align: center;
+  margin-top: 60px;
+  font-size: 24px;
+  font-weight: 500;
+}
