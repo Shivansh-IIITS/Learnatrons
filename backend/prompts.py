@@ -162,6 +162,7 @@ Produce a detailed evaluation as valid JSON with this EXACT structure:
     "technical_score": 5,
     "problem_solving_score": 5,
     "cultural_fit_score": 5,
+    "confidence_score": 5,
     "strengths": [
         "A specific strength with evidence from a particular answer in the transcript"
     ],
@@ -177,7 +178,9 @@ Produce a detailed evaluation as valid JSON with this EXACT structure:
         "notes": "Assessment of attention and integrity based on flags"
     }},
     "sentiment_and_delivery": {{
+        "confidence_score": 75,
         "confidence_level": "High | Moderate | Low",
+        "verbal_assertiveness": "Assessment of direct conviction vs hedging/hesitation",
         "pace_and_fluency": "Assessment of delivery, clarity, and hesitations",
         "tips": "One concrete tip to project greater confidence and clarity"
     }},

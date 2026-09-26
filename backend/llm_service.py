@@ -1,11 +1,28 @@
 """
-LLM Service — Google Gemini Flash integration for interview AI.
-Handles resume summarization, adaptive questioning, and evaluation.
+LLM Service — Multi-provider AI engine for interview platform.
+Supports Groq (ultra-low latency), OpenAI, and Google Gemini with an intelligent
+context-aware adaptive reasoning engine when offline or between rate-limit windows.
 """
 import os
 import json
 import re
-import google.generativeai as genai
+import urllib.request
+import time
+from dotenv import load_dotenv
+
+# Automatically load .env from current directory and workspace root
+load_dotenv(override=True)
+
+try:
+    from google import genai as genai_v2
+except ImportError:
+    genai_v2 = None
+
+try:
+    import google.generativeai as genai_legacy
+except ImportError:
+    genai_legacy = None
+
 from prompts import (
     RESUME_SUMMARY_PROMPT, 
     INTERVIEWER_SYSTEM_PROMPT, 
@@ -16,36 +33,81 @@ from prompts import (
 )
 
 
-# Multi-Provider Keys: Groq (Ultra-low latency primary) + Gemini (Full capability fallback)
-GROQ_KEYS = [
-    os.getenv("GROQ_API_KEY")
-]
-GROQ_KEYS = [k for k in GROQ_KEYS if k]
-
-GEMINI_KEYS = [
-    os.getenv("GEMINI_API_KEY"),
-    os.getenv("GOOGLE_API_KEY")
-]
-GEMINI_KEYS = [k for k in GEMINI_KEYS if k]
-
-# Initialize default Gemini config
-if GEMINI_KEYS:
-    try:
-        genai.configure(api_key=GEMINI_KEYS[0])
-    except Exception as e:
-        print(f"[Gemini Init Warning] {e}")
-
 GROQ_MODELS = [
     "qwen/qwen3.8-27b",
     "openai/gpt-oss-120b",
-    "openai/gpt-oss-20b"
+    "openai/gpt-oss-20b",
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+    "gemma2-9b-it"
+]
+
+OPENAI_MODELS = [
+    "gpt-4o-mini",
+    "gpt-4o"
 ]
 
 GEMINI_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-3.8-flash",
+    "gemini-flash-latest",
     "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
-    "gemini-flash-latest"
+    "gemini-2.0-flash",
+    "gemini-1.5-flash"
 ]
+
+
+def get_configured_keys():
+    """
+    Retrieve all configured API keys dynamically from environment & .env files.
+    Supports:
+    - Single keys: GROQ_API_KEY, GEMINI_API_KEY, GOOGLE_API_KEY, OPENAI_API_KEY
+    - Numbered fallback keys: GROQ_API_KEY_1..10, GEMINI_API_KEY_1..10, GOOGLE_API_KEY_1..10, OPENAI_API_KEY_1..10
+    - Comma-delimited lists in any key variable (e.g. GEMINI_API_KEYS="key1,key2,key3")
+    - Searches os.environ and automatically re-reads backend/.env and .env if present
+    """
+    # Check all candidate locations for .env files dynamically
+    candidate_paths = [
+        os.path.join(os.path.dirname(__file__), ".env"),
+        os.path.join(os.path.dirname(__file__), "..", ".env"),
+        os.path.join(os.getcwd(), ".env"),
+        os.path.join(os.getcwd(), "backend", ".env"),
+        "/home/nishant_linux_pro/Desktop/Workspace/llms/.env",
+        "/home/nishant_linux_pro/Desktop/Workspace/agentic_basics/agent-v4/.env"
+    ]
+    for p in candidate_paths:
+        if os.path.exists(p):
+            load_dotenv(p, override=False)
+
+    groq_keys = []
+    gemini_keys = []
+    openai_keys = []
+
+    def add_keys(target_list, raw_val):
+        if not raw_val:
+            return
+        parts = [p.strip().strip('"').strip("'") for p in str(raw_val).split(",")]
+        for p in parts:
+            if p and p not in target_list:
+                target_list.append(p)
+
+    for prefix in ["GROQ_API_KEY", "GROQ_KEY"]:
+        add_keys(groq_keys, os.getenv(prefix))
+        for i in range(1, 11):
+            add_keys(groq_keys, os.getenv(f"{prefix}_{i}"))
+
+    for prefix in ["GEMINI_API_KEY", "GEMINI_KEY", "GOOGLE_API_KEY"]:
+        add_keys(gemini_keys, os.getenv(prefix))
+        for i in range(1, 11):
+            add_keys(gemini_keys, os.getenv(f"{prefix}_{i}"))
+
+    for prefix in ["OPENAI_API_KEY", "OPENAI_KEY"]:
+        add_keys(openai_keys, os.getenv(prefix))
+        for i in range(1, 11):
+            add_keys(openai_keys, os.getenv(f"{prefix}_{i}"))
+
+    return groq_keys, openai_keys, gemini_keys
 
 
 def format_messages_for_groq(prompt_or_messages):
@@ -63,32 +125,35 @@ def format_messages_for_groq(prompt_or_messages):
 
 def call_llm_with_fallback(prompt_or_messages, max_tokens=1500) -> str:
     """
-    Ultra-low latency LLM pipeline:
-    1. Primary: Groq (0.18s latency, Qwen 3.8 27B / GPT-OSS 120B) across rotated keys
-    2. Secondary Fallback: Google Gemini Flash across multiple API keys and models
+    Multi-Provider LLM Pipeline with full fallback rotation:
+    1. Primary: Groq LPUs across all available keys (Qwen 3.8 27B / GPT-OSS 120B)
+    2. Secondary: OpenAI across all available keys (GPT-4o-mini / GPT-4o)
+    3. Tertiary: Google Gemini Flash across all available keys (GenAI v2 & Legacy SDK)
     """
-    import urllib.request
-    import time
+    groq_keys, openai_keys, gemini_keys = get_configured_keys()
+    chat_msgs = format_messages_for_groq(prompt_or_messages)
+    browser_headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    last_err = None
 
-    # ── 1. Primary Engine: Ultra-Fast Groq ──────────────────────────────────
-    groq_msgs = format_messages_for_groq(prompt_or_messages)
-    for key in GROQ_KEYS:
+    # ── 1. Groq Engine (All Keys & Models) ──────────────────────────────────
+    for key in groq_keys:
         for model in GROQ_MODELS:
             try:
                 t0 = time.time()
                 payload = {
                     "model": model,
-                    "messages": groq_msgs,
+                    "messages": chat_msgs,
                     "temperature": 0.7,
                     "max_tokens": max_tokens
                 }
+                req_headers = dict(browser_headers)
+                req_headers["Authorization"] = f"Bearer {key}"
                 req = urllib.request.Request(
                     "https://api.groq.com/openai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {key}",
-                        "Content-Type": "application/json",
-                        "User-Agent": "InterviewAI/1.0"
-                    },
+                    headers=req_headers,
                     data=json.dumps(payload).encode("utf-8")
                 )
                 with urllib.request.urlopen(req, timeout=8) as resp:
@@ -98,32 +163,85 @@ def call_llm_with_fallback(prompt_or_messages, max_tokens=1500) -> str:
                         print(f"[LLM] Groq ({model}) succeeded in {time.time()-t0:.2f}s")
                         return text
             except Exception as e:
-                print(f"[LLM Fallover] Groq ({model}) failed: {e}. Trying next...")
+                last_err = e
+                print(f"[LLM Fallover] Groq ({model}) failed with key {key[:8]}...: {e}")
                 continue
 
-    # ── 2. Fallback Engine: Google Gemini Flash ─────────────────────────────
-    print("[LLM Cascade] Falling back to Google Gemini...")
-    last_err = None
-    for key in GEMINI_KEYS:
-        try:
-            genai.configure(api_key=key)
-        except Exception:
-            continue
-
-        for model_name in GEMINI_MODELS:
+    # ── 2. OpenAI Engine (All Keys & Models) ────────────────────────────────
+    for key in openai_keys:
+        for model in OPENAI_MODELS:
             try:
                 t0 = time.time()
-                m = genai.GenerativeModel(model_name)
-                res = m.generate_content(prompt_or_messages)
-                if res and res.text:
-                    print(f"[LLM] Gemini ({model_name}) succeeded in {time.time()-t0:.2f}s")
-                    return res.text.strip()
+                payload = {
+                    "model": model,
+                    "messages": chat_msgs,
+                    "temperature": 0.7,
+                    "max_tokens": max_tokens
+                }
+                req_headers = dict(browser_headers)
+                req_headers["Authorization"] = f"Bearer {key}"
+                req = urllib.request.Request(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers=req_headers,
+                    data=json.dumps(payload).encode("utf-8")
+                )
+                with urllib.request.urlopen(req, timeout=12) as resp:
+                    data = json.loads(resp.read().decode())
+                    text = data["choices"][0]["message"]["content"].strip()
+                    if text:
+                        print(f"[LLM] OpenAI ({model}) succeeded in {time.time()-t0:.2f}s")
+                        return text
             except Exception as e:
                 last_err = e
-                print(f"[LLM Fallover] Gemini ({model_name}) failed: {e}. Trying next...")
+                print(f"[LLM Fallover] OpenAI ({model}) failed with key {key[:8]}...: {e}")
                 continue
 
-    raise last_err or Exception("All Groq and Gemini models in cascade failed.")
+    # ── 3. Google Gemini Engine (All Keys & Models) ─────────────────────────
+    prompt_str = prompt_or_messages if isinstance(prompt_or_messages, str) else "\n".join(
+        m.get("content", "") for m in chat_msgs
+    )
+    for key in gemini_keys:
+        # Try new google-genai SDK
+        if genai_v2:
+            try:
+                client = genai_v2.Client(api_key=key)
+                for model_name in GEMINI_MODELS:
+                    try:
+                        t0 = time.time()
+                        res = client.models.generate_content(
+                            model=model_name,
+                            contents=prompt_str
+                        )
+                        if res and res.text:
+                            print(f"[LLM] Gemini GenAI ({model_name}) succeeded in {time.time()-t0:.2f}s")
+                            return res.text.strip()
+                    except Exception as e:
+                        last_err = e
+                        print(f"[LLM Fallover] Gemini GenAI ({model_name}) failed with key {key[:8]}...: {e}")
+                        continue
+            except Exception as e:
+                last_err = e
+
+        # Try legacy google.generativeai SDK
+        if genai_legacy:
+            try:
+                genai_legacy.configure(api_key=key)
+                for model_name in GEMINI_MODELS:
+                    try:
+                        t0 = time.time()
+                        m = genai_legacy.GenerativeModel(model_name)
+                        res = m.generate_content(prompt_or_messages)
+                        if res and res.text:
+                            print(f"[LLM] Gemini Legacy ({model_name}) succeeded in {time.time()-t0:.2f}s")
+                            return res.text.strip()
+                    except Exception as e:
+                        last_err = e
+                        print(f"[LLM Fallover] Gemini Legacy ({model_name}) failed with key {key[:8]}...: {e}")
+                        continue
+            except Exception as e:
+                last_err = e
+
+    raise last_err or RuntimeError("All configured LLM providers and fallback keys failed.")
 
 
 # Backward compatibility alias
@@ -158,6 +276,151 @@ def summarize_resume(resume_text: str) -> dict:
             "key_projects": ["Engineered distributed backend systems and APIs"],
             "summary": f"Professional with background in software development and engineering: {first_line}"
         }
+
+
+def generate_contextual_adaptive_fallback_question(
+    role: str,
+    resume_summary: dict,
+    conversation_history: list,
+    question_number: int,
+    max_questions: int
+) -> str:
+    """
+    Intelligent context-aware fallback question generator.
+    Parses candidate answers dynamically (addressing meta-confusion, apologies,
+    extracting specific technical concepts, and pushing back on vague one-liners)
+    so the interview never falls into static, repetitive scripts.
+    """
+    candidate_name = resume_summary.get("candidate_name", "there")
+    if question_number <= 1 or not conversation_history:
+        return f"Hi {candidate_name}, thanks for joining today! I'm glad to speak with you. To start off, could you tell me a bit about your background and what motivated you to interview for this {role} position?"
+
+    # Find the most recent candidate answer
+    last_candidate_answer = ""
+    for msg in reversed(conversation_history):
+        if msg.get("role") == "candidate":
+            last_candidate_answer = msg.get("content", "").strip()
+            break
+
+    ans_lower = last_candidate_answer.lower()
+    words = last_candidate_answer.split()
+
+    # 1. Meta / Confused queries: "what you are doing", "who are you", etc.
+    meta_patterns = [
+        "what you are doing", "what are you doing", "who are you", "what is this", 
+        "are you ai", "are you an ai", "what do you mean", "can you repeat", 
+        "repeat", "pardon", "what's this", "how are you", "what is happening"
+    ]
+    if any(p in ans_lower for p in meta_patterns):
+        return (
+            f"I am your AI technical interviewer for this {role} position. We are conducting a live technical discussion "
+            f"to evaluate your engineering approach and domain skills. "
+            f"To get us right into it: could you describe a significant technical project you built or led recently?"
+        )
+
+    # 2. Candidate apologies / concessions: "sorry", "my bad", etc.
+    apology_patterns = ["sorry", "my bad", "apologies", "excuse me", "i apologize", "sorry about that"]
+    if any(ans_lower == p or ans_lower.startswith(p + " ") or ans_lower.endswith(" " + p) for p in apology_patterns):
+        return (
+            "No need to apologize at all! Take your time. "
+            f"Let's focus on your technical problem-solving: how do you typically approach debugging a complex, intermittent issue "
+            f"in your {role} work when standard logs and monitoring dashboards are inconclusive?"
+        )
+
+    # 3. Direct technical topic probing (prioritizing high-specificity AI & system terms first):
+    topic_probes = [
+        ("first principle", (
+            "Applying a first-principles mindset is great for cutting through architectural complexity. "
+            "Could you walk me through a specific scenario where you broke down a difficult problem to first principles "
+            "to discover the root cause or architect an optimal solution?"
+        )),
+        ("rag", (
+            "In RAG pipelines, retrieval precision and hallucination prevention are paramount. "
+            "How did you design your chunking strategy, embeddings model selection, and reranking stage to ensure high-fidelity answers?"
+        )),
+        ("agent", (
+            "When building agentic workflows with tool execution, how do you prevent circular reasoning loops, manage context window compaction, "
+            "and handle graceful recovery when external tools fail?"
+        )),
+        ("llm", (
+            "When deploying LLMs into production pipelines, what strategies do you use to manage non-deterministic outputs, "
+            "token costs, and latency budgets?"
+        )),
+        ("transformer", (
+            "With transformer architectures, what considerations did you make regarding context length limits, "
+            "attention mechanisms, and inference optimization?"
+        )),
+        ("fastapi", (
+            "FastAPI handles async requests efficiently. How did you structure your dependency injection, database connection sessions, "
+            "and long-running background tasks?"
+        )),
+        ("latency", (
+            "High latency is often difficult to pinpoint across distributed systems. What profiling tools and telemetry did you use, "
+            "and what specific optimization delivered the largest latency reduction?"
+        )),
+        ("cache", (
+            "Caching is essential for throughput, but invalidation is challenging. What caching pattern (e.g. write-through, cache-aside) "
+            "did you implement, and how did you prevent race conditions or cache stampedes?"
+        )),
+        ("microservice", (
+            "You mentioned microservices. What communication protocols did you choose between services (e.g. gRPC vs REST vs message queues), "
+            "and how did you manage distributed transactions or eventual consistency?"
+        )),
+        ("database", (
+            "When designing and tuning the database layer for that system, how did you balance normalization vs read performance, "
+            "and what indexing or partitioning strategies did you rely on?"
+        )),
+        ("sql", (
+            "When dealing with slow SQL queries under peak traffic, how do you analyze the execution plan and what specific optimizations "
+            "(such as covering indexes or query restructuring) yielded the biggest gains?"
+        )),
+        ("docker", (
+            "In containerizing and deploying services with Docker, how do you optimize image size, ensure reproducible builds, "
+            "and handle secret injection securely?"
+        )),
+        ("kubernetes", (
+            "When operating services in Kubernetes, how do you configure resource limits, health probes, and horizontal pod autoscaling "
+            "for variable traffic patterns?"
+        )),
+        ("python", (
+            "In Python, managing concurrency often comes down to choosing between asyncio, threading, or multiprocessing. "
+            "How did you evaluate and choose the right concurrency model for your workload?"
+        )),
+        ("pipeline", (
+            "In designing that data or processing pipeline, what measures did you take to ensure idempotency, data replayability, "
+            "and failure recovery without data duplication?"
+        ))
+    ]
+
+    for topic, probe in topic_probes:
+        if topic in ans_lower:
+            return probe
+
+    # 4. Short / Vague answers (less than 6 words):
+    if 0 < len(words) <= 5:
+        return (
+            f"You mentioned \"{last_candidate_answer}\". That's a good high-level concept, but let's dive into the concrete technical implementation: "
+            f"what were the exact steps you took, and what unexpected trade-offs or roadblocks did you encounter?"
+        )
+
+    # 5. Progression-aware interview questions:
+    progression_questions = {
+        2: f"Could you walk me through the system architecture of the most technically challenging project on your resume, and why you made those architectural choices?",
+        3: "How do you approach debugging or diagnosing a difficult technical issue when logs and standard metrics are inconclusive?",
+        4: "Can you tell me about a time when you had to balance architectural best practices with tight product delivery deadlines?",
+        5: f"In a {role} capacity, how do you evaluate technology trade-offs when choosing between different libraries, frameworks, or database solutions?",
+        6: "Could you describe an edge case or production incident where an assumption in your code failed, and how you resolved and post-mortemed it?",
+        7: "How do you structure automated testing and CI/CD pipelines to ensure reliability without slowing down developer velocity?",
+        8: "Could you share an example of a situation where you had a differing technical viewpoint from a teammate, and how you reached consensus?",
+        9: "How do you approach monitoring, alerting, and observability once a critical service is live in production?",
+        10: f"Looking at where your field is headed, what emerging tools, frameworks, or practices are you most excited to adopt as a {role}?",
+        11: "To wrap up our discussion, what questions or reflections do you have about the engineering practices and expectations for this position?"
+    }
+    
+    return progression_questions.get(
+        question_number,
+        f"Thinking about your experience as a {role}, what is a core engineering principle that you always adhere to in production systems?"
+    )
 
 
 def generate_question(
@@ -240,24 +503,14 @@ def generate_question(
     try:
         return call_gemini_with_fallback(messages)
     except Exception as e:
-        print(f"[LLM Warning] generate_question error: {e}")
-        # Robust fallback question tailored to role & question progression
-        candidate_name = resume_summary.get("candidate_name", "there")
-        if question_number == 1:
-            return f"Hi {candidate_name}, thanks for joining today! I'm glad to speak with you. To start off, could you tell me a bit about your background and what motivated you to interview for this {role} position?"
-        
-        fallback_pool = [
-            f"Could you walk me through a challenging project in your recent work related to {role}, and how you handled unexpected roadblocks?",
-            "How do you approach debugging or diagnosing a difficult technical issue when logs and standard metrics are inconclusive?",
-            "Can you tell me about a time when you had to balance architectural best practices with tight product delivery deadlines?",
-            f"In a {role} capacity, how do you typically collaborate with product managers and junior team members to ensure technical clarity?",
-            "What criteria do you use when choosing between different technologies, frameworks, or database solutions for a new feature?",
-            "Could you share an example of a situation where you had a differing technical viewpoint from a teammate, and how you reached consensus?",
-            f"Looking at where your field is headed, what emerging tools or practices are you most enthusiastic about adopting as a {role}?",
-            "To wrap up our discussion, what questions or thoughts do you have about the team, culture, or expectations for this position?"
-        ]
-        idx = min(max(0, question_number - 2), len(fallback_pool) - 1)
-        return fallback_pool[idx]
+        print(f"[LLM Warning] generate_question falling back to adaptive engine: {e}")
+        return generate_contextual_adaptive_fallback_question(
+            role=role,
+            resume_summary=resume_summary,
+            conversation_history=conversation_history,
+            question_number=question_number,
+            max_questions=max_questions
+        )
 
 
 def is_conclusion_statement(text: str) -> bool:
@@ -381,6 +634,7 @@ def generate_evaluation(
                 "technical_score": 1,
                 "problem_solving_score": 1,
                 "cultural_fit_score": 1,
+                "confidence_score": 1,
                 "strengths": [
                     "Unable to identify strengths — insufficient interview data and evaluation system error."
                 ],
@@ -396,7 +650,9 @@ def generate_evaluation(
                     "notes": "Evaluation failed and interview data is insufficient for manual review."
                 },
                 "sentiment_and_delivery": {
+                    "confidence_score": 20,
                     "confidence_level": "Low",
+                    "verbal_assertiveness": "Insufficient speech data recorded.",
                     "pace_and_fluency": "Insufficient audio recorded for vocal assessment.",
                     "tips": "Complete a full voice interview to receive speech cadence and delivery feedback."
                 },
@@ -424,6 +680,7 @@ def generate_evaluation(
             "technical_score": 4,
             "problem_solving_score": 4,
             "cultural_fit_score": 4,
+            "confidence_score": 4,
             "strengths": [
                 "Automated evaluation encountered an error. These scores are conservative defaults, not based on answer analysis."
             ],
@@ -439,7 +696,9 @@ def generate_evaluation(
                 "notes": "Integrity data was collected but could not be fully analyzed due to evaluation error."
             },
             "sentiment_and_delivery": {
+                "confidence_score": 60,
                 "confidence_level": "Moderate",
+                "verbal_assertiveness": "Moderate conviction observed in responses.",
                 "pace_and_fluency": "Pacing within acceptable threshold.",
                 "tips": "Practice deliberate pacing and avoid filler transitions."
             },

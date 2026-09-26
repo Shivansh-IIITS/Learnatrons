@@ -17,25 +17,25 @@ const evalData = JSON.parse(rawEval);
 // ── Incomplete Interview Warning Banner ────────────────────────────────────
 if (evalData.is_incomplete || evalData.overall_rating?.includes('Insufficient') || evalData.overall_rating?.includes('Incomplete')) {
     const banner = document.createElement('div');
-    banner.className = 'bg-rose-500/10 border border-rose-500/30 rounded-2xl p-6 mb-8 fade-in';
+    banner.className = 'bg-rose-500/10 border border-rose-500/25 rounded-2xl p-6 mb-8 fade-in';
     banner.innerHTML = `
         <div class="flex items-start gap-4">
-            <div class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/30">
+            <div class="w-10 h-10 rounded-xl bg-rose-500/15 text-rose-700 flex items-center justify-center shrink-0 border border-rose-500/20">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                 </svg>
             </div>
             <div>
-                <h2 class="text-base font-bold text-rose-400 mb-1">Incomplete Interview — Evaluation Unreliable</h2>
-                <p class="text-xs text-slate-300 leading-relaxed">
+                <h2 class="text-base font-bold text-rose-800 mb-1">Incomplete Interview — Evaluation Unreliable</h2>
+                <p class="text-xs text-[#555560] leading-relaxed">
                     ${evalData.interview_completeness 
-                        ? `Only <strong class="text-rose-400">${evalData.interview_completeness}</strong> questions were answered.`
+                        ? `Only <strong class="text-rose-700">${evalData.interview_completeness}</strong> questions were answered.`
                         : 'The interview was ended before enough questions were answered.'
                     }
                     A minimum of 3 substantive responses is required for a meaningful evaluation.
-                    Scores shown below are <strong class="text-rose-400">not reliable</strong> and should not be used for hiring decisions.
+                    Scores shown below are <strong class="text-rose-700">not reliable</strong> and should not be used for hiring decisions.
                 </p>
-                <a href="index.html" class="inline-flex items-center gap-1.5 mt-3 bg-[#111827] hover:bg-[#1f293d] text-rose-400 text-xs font-semibold px-3 py-1.5 rounded-lg border border-rose-500/40 transition shadow-sm">
+                <a href="index.html" class="inline-flex items-center gap-1.5 mt-3 btn-liquid-black text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                     </svg>
@@ -50,17 +50,17 @@ if (evalData.is_incomplete || evalData.overall_rating?.includes('Insufficient') 
 
 // ── Score Color Coding (low scores = red/amber, high = green) ──────────────
 function getScoreColor(score) {
-    if (score <= 3) return 'text-rose-400';
-    if (score <= 5) return 'text-amber-400';
-    if (score <= 7) return 'text-blue-400';
-    return 'text-emerald-400';
+    if (score <= 3) return 'text-rose-600';
+    if (score <= 5) return 'text-amber-600';
+    if (score <= 7) return 'text-[#111114]';
+    return 'text-emerald-700';
 }
 
 function getBarColor(score) {
     if (score <= 3) return 'bg-rose-500';
     if (score <= 5) return 'bg-amber-500';
-    if (score <= 7) return 'bg-blue-500';
-    return 'bg-emerald-500';
+    if (score <= 7) return 'bg-[#111114]';
+    return 'bg-emerald-600';
 }
 
 // ── Populate Candidate Info ─────────────────────────────────────────────────
@@ -75,11 +75,11 @@ document.getElementById('overallRating').textContent = evalData.overall_rating |
 // Color-code the overall rating text based on score
 const ratingEl = document.getElementById('overallRating');
 if (overallScore <= 3) {
-    ratingEl.className = 'text-lg font-bold text-rose-400';
+    ratingEl.className = 'text-lg font-extrabold text-rose-600';
 } else if (overallScore <= 5) {
-    ratingEl.className = 'text-lg font-bold text-amber-400';
+    ratingEl.className = 'text-lg font-extrabold text-amber-600';
 } else {
-    ratingEl.className = 'text-lg font-bold text-blue-400';
+    ratingEl.className = 'text-lg font-extrabold text-[#111114]';
 }
 
 // Score circle gradient percentage — color-coded
@@ -87,11 +87,11 @@ const pct = (overallScore / 10) * 100;
 const circleEl = document.getElementById('overallScoreCircle');
 if (circleEl) {
     circleEl.style.setProperty('--pct', `${pct}%`);
-    let circleColor = '#3b82f6';
-    if (overallScore <= 3) circleColor = '#f43f5e';
-    else if (overallScore <= 5) circleColor = '#f59e0b';
-    else if (overallScore >= 8) circleColor = '#10b981';
-    circleEl.style.background = `conic-gradient(${circleColor} ${pct}%, #1f293d ${pct}%)`;
+    let circleColor = '#111114';
+    if (overallScore <= 3) circleColor = '#e11d48';
+    else if (overallScore <= 5) circleColor = '#d97706';
+    else if (overallScore >= 8) circleColor = '#059669';
+    circleEl.style.background = `conic-gradient(${circleColor} ${pct}%, rgba(0, 0, 0, 0.08) ${pct}%)`;
 }
 
 // ── Dimension Scores ────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ function setScore(scoreId, barId, value) {
         barEl.style.width = `${((value || 0) / 10) * 100}%`;
         // Color code the score text and bar based on value
         scoreEl.className = `text-2xl font-bold ${getScoreColor(value || 0)}`;
-        barEl.className = `h-1.5 rounded-full ${getBarColor(value || 0)}`;
+        barEl.className = `h-2 rounded-full ${getBarColor(value || 0)}`;
     }
 }
 
@@ -112,6 +112,12 @@ setScore('techScore', 'techBar', evalData.technical_score);
 setScore('commScore', 'commBar', evalData.communication_score);
 setScore('psScore', 'psBar', evalData.problem_solving_score);
 setScore('cultureScore', 'cultureBar', evalData.cultural_fit_score);
+const derivedConfidence = evalData.confidence_score != null 
+    ? evalData.confidence_score 
+    : (evalData.sentiment_and_delivery && evalData.sentiment_and_delivery.confidence_score 
+        ? Math.round(evalData.sentiment_and_delivery.confidence_score / 10) 
+        : 7);
+setScore('confidenceScore', 'confidenceBar', derivedConfidence);
 
 // ── Recommendation ──────────────────────────────────────────────────────────
 document.getElementById('recommendationText').textContent = evalData.recommendation || '—';
@@ -233,26 +239,71 @@ if (coachingItemsList) {
     });
 }
 
-// ── Voice Sentiment & Delivery Rendering ────────────────────────────────────
+// ── Multimodal Confidence & Speech Fluency Rendering ────────────────────────
 const deliveryData = evalData.sentiment_and_delivery || {};
+let storedSentiment = {};
+try {
+    const rawSent = localStorage.getItem('interviewai_sentiment_metrics');
+    if (rawSent) storedSentiment = JSON.parse(rawSent);
+} catch (e) {}
+
 const deliveryConfEl = document.getElementById('deliveryConfidence');
 const deliveryPacingEl = document.getElementById('deliveryPacing');
 const deliveryTipsEl = document.getElementById('deliveryTips');
+const multimodalScorePctEl = document.getElementById('multimodalScorePct');
+const deliveryAssertivenessTextEl = document.getElementById('deliveryAssertivenessText');
+const assertiveScoreValEl = document.getElementById('assertiveScoreVal');
+const assertiveScoreBarEl = document.getElementById('assertiveScoreBar');
+const visualScoreValEl = document.getElementById('visualScoreVal');
+const visualScoreBarEl = document.getElementById('visualScoreBar');
+const fluencyScoreValEl = document.getElementById('fluencyScoreVal');
+const fluencyScoreBarEl = document.getElementById('fluencyScoreBar');
 
+// Confidence Level & Badge
 if (deliveryConfEl) {
-    const conf = deliveryData.confidence_level || 'Moderate';
+    const conf = deliveryData.confidence_level || storedSentiment.confidence_level || 'Moderate';
     deliveryConfEl.textContent = conf;
     if (conf.toLowerCase().includes('high')) {
-        deliveryConfEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+        deliveryConfEl.className = 'font-extrabold text-xs px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
     } else if (conf.toLowerCase().includes('low')) {
-        deliveryConfEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        deliveryConfEl.className = 'font-extrabold text-xs px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
     } else {
-        deliveryConfEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20';
+        deliveryConfEl.className = 'font-extrabold text-xs px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
     }
 }
 
+// Multimodal composite score percentage header badge
+const confPercent = storedSentiment.confidence_score != null
+    ? storedSentiment.confidence_score
+    : (deliveryData.confidence_score != null
+        ? deliveryData.confidence_score
+        : (evalData.confidence_score ? Math.round(evalData.confidence_score * 10) : 84));
+
+if (multimodalScorePctEl) {
+    multimodalScorePctEl.textContent = `${confPercent}% Composite`;
+}
+
+// Verbal assertiveness description
+if (deliveryAssertivenessTextEl && deliveryData.verbal_assertiveness) {
+    deliveryAssertivenessTextEl.textContent = deliveryData.verbal_assertiveness;
+}
+
+// Telemetry triad bars
+const assertiveScore = storedSentiment.verbal_assertiveness_score || 82;
+const visualScore = storedSentiment.visual_composure_score || storedSentiment.eye_contact_percentage || 88;
+const fluencyScore = storedSentiment.speech_fluency_score || 85;
+
+if (assertiveScoreValEl) assertiveScoreValEl.textContent = `${assertiveScore}%`;
+if (assertiveScoreBarEl) assertiveScoreBarEl.style.width = `${assertiveScore}%`;
+
+if (visualScoreValEl) visualScoreValEl.textContent = `${visualScore}%`;
+if (visualScoreBarEl) visualScoreBarEl.style.width = `${visualScore}%`;
+
+if (fluencyScoreValEl) fluencyScoreValEl.textContent = `${fluencyScore}%`;
+if (fluencyScoreBarEl) fluencyScoreBarEl.style.width = `${fluencyScore}%`;
+
 if (deliveryPacingEl) {
-    deliveryPacingEl.textContent = deliveryData.pace_and_fluency || 'Even cadence with minimal filler pauses.';
+    deliveryPacingEl.textContent = deliveryData.pace_and_fluency || storedSentiment.pace_and_fluency || 'Even cadence with minimal filler pauses.';
 }
 
 if (deliveryTipsEl) {

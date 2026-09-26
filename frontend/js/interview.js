@@ -363,11 +363,11 @@ function addMessage(role, text) {
     div.className = `p-4 rounded-xl fade-in ${role === 'interviewer' ? 'msg-interviewer' : 'msg-candidate'}`;
     
     const label = document.createElement('p');
-    label.className = 'text-xs font-bold mb-1 ' + (role === 'interviewer' ? 'text-blue-400' : 'text-emerald-400');
+    label.className = 'text-xs font-extrabold mb-1 ' + (role === 'interviewer' ? 'text-[#111114]' : 'text-emerald-700');
     label.textContent = role === 'interviewer' ? 'AI Interviewer' : candidateName;
     
     const content = document.createElement('p');
-    content.className = 'text-slate-200 text-sm leading-relaxed';
+    content.className = 'text-[#111114] text-sm leading-relaxed font-medium';
     content.textContent = text;
     
     div.appendChild(label);
@@ -567,8 +567,10 @@ async function endInterview() {
     if (goToReportBtn) goToReportBtn.disabled = true;
 
     try {
-        // Save coding submissions to localStorage for report page
+        // Save coding submissions and multimodal metrics to localStorage for report page
+        const aggregatedSentiment = getAggregatedSentimentMetrics();
         localStorage.setItem('interviewai_coding_submissions', JSON.stringify(sessionCodingSubmissions));
+        localStorage.setItem('interviewai_sentiment_metrics', JSON.stringify(aggregatedSentiment));
 
         const res = await fetch(`${API_BASE}/api/interview/end`, {
             method: 'POST',
@@ -576,7 +578,7 @@ async function endInterview() {
             body: JSON.stringify({
                 session_id: sessionId,
                 attention_flags: attentionFlags,
-                sentiment_metrics: getAggregatedSentimentMetrics(),
+                sentiment_metrics: aggregatedSentiment,
                 coding_submissions: sessionCodingSubmissions
             }),
         });
@@ -1037,6 +1039,15 @@ function mediaPipeDetectLoop() {
             const ear = (leftEAR + rightEAR) / 2;
             const eyesClosed = ear < EAR_THRESHOLD;
 
+            // Multimodal composure tracking (eye contact & center pose ratio)
+            if (interviewActive) {
+                totalVisualFrames++;
+                if (direction === 'CENTER' && !eyesClosed) {
+                    focusedVisualFrames++;
+                }
+                updateVisualComposureUI();
+            }
+
             // 4. LOOKING AWAY / DOWN CHECK
             if (direction !== 'CENTER') {
                 const lookingDesc = direction === 'DOWN' ? 'looking down (possible phone or notes)' : `looking ${direction.toLowerCase()}`;
@@ -1136,6 +1147,12 @@ function initBasicFaceDetection() {
             
             const skinRatio = skinPixels / (totalPixels / 4);
             const facePresent = skinRatio > 0.05;
+
+            if (interviewActive) {
+                totalVisualFrames++;
+                if (facePresent) focusedVisualFrames++;
+                updateVisualComposureUI();
+            }
             
             if (facePresent) {
                 updateIntegrityDot(facePresentDot, 'green');
@@ -1180,39 +1197,88 @@ function flagAttention(type, description) {
 
 
 // ============================================================================
-// NOVEL FEATURE 1: REAL-TIME VOICE SENTIMENT, HESITATION & FLUENCY TRACKER
+// NOVEL FEATURE 1: REAL-TIME MULTIMODAL CONFIDENCE, SENTIMENT & FLUENCY TRACKER
 // ============================================================================
 
 let totalFillerCount = 0;
+let totalHedgingCount = 0;
+let totalAssertiveCount = 0;
 let totalWordsSpoken = 0;
+let totalVisualFrames = 0;
+let focusedVisualFrames = 0;
 let currentConfidence = 88;
+
 const FILLER_REGEX = /\b(um|uh|uhh|er|like|actually|basically|literally|you know|sort of|kind of)\b/gi;
+const HEDGING_REGEX = /\b(i think|i guess|maybe|perhaps|probably|not sure|i suppose|might be|i don't know)\b/gi;
+const ASSERTIVE_REGEX = /\b(definitely|certainly|specifically|implemented|architected|designed|optimized|solved|achieved|confident|because|measured|responsible|led|built)\b/gi;
+
+function updateVisualComposureUI() {
+    const gazePoiseEl = document.getElementById('liveGazePoise');
+    if (!gazePoiseEl) return;
+    const visualRatio = totalVisualFrames > 10 
+        ? Math.round((focusedVisualFrames / totalVisualFrames) * 100) 
+        : 92;
+    if (visualRatio >= 85) {
+        gazePoiseEl.textContent = `Direct (${visualRatio}%)`;
+        gazePoiseEl.className = 'font-semibold text-emerald-400';
+    } else if (visualRatio >= 65) {
+        gazePoiseEl.textContent = `Attentive (${visualRatio}%)`;
+        gazePoiseEl.className = 'font-semibold text-amber-400';
+    } else {
+        gazePoiseEl.textContent = `Averted (${visualRatio}%)`;
+        gazePoiseEl.className = 'font-semibold text-rose-400';
+    }
+}
 
 function analyzeSpeechChunk(text) {
     if (!text || typeof text !== 'string') return;
     
     // Count filler words
-    const matches = text.match(FILLER_REGEX);
-    const chunkFillerCount = matches ? matches.length : 0;
+    const fillerMatches = text.match(FILLER_REGEX);
+    const chunkFillerCount = fillerMatches ? fillerMatches.length : 0;
     totalFillerCount += chunkFillerCount;
+
+    // Count hedging phrases
+    const hedgeMatches = text.match(HEDGING_REGEX);
+    const chunkHedgeCount = hedgeMatches ? hedgeMatches.length : 0;
+    totalHedgingCount += chunkHedgeCount;
+
+    // Count assertive keywords
+    const assertiveMatches = text.match(ASSERTIVE_REGEX);
+    const chunkAssertiveCount = assertiveMatches ? assertiveMatches.length : 0;
+    totalAssertiveCount += chunkAssertiveCount;
 
     // Word count
     const words = text.trim().split(/\s+/).filter(Boolean);
     totalWordsSpoken += words.length;
 
-    // Confidence heuristic:
-    // Base 88, -2.5% per filler word, +1% for answers with substance (>25 words)
-    let score = 88 - (totalFillerCount * 2.5);
-    if (words.length > 25) score += 3;
-    if (words.length > 50) score += 3;
-    score = Math.max(45, Math.min(96, Math.round(score)));
-    currentConfidence = score;
+    // 1. Verbal assertiveness component (scale 0-100)
+    let verbalScore = 78 + (totalAssertiveCount * 3.5) - (totalHedgingCount * 4);
+    if (words.length > 25) verbalScore += 4;
+    if (words.length > 60) verbalScore += 3;
+    verbalScore = Math.max(35, Math.min(98, Math.round(verbalScore)));
+
+    // 2. Speech fluency component (scale 0-100)
+    let fluencyScore = 92 - (totalFillerCount * 3.5);
+    fluencyScore = Math.max(35, Math.min(98, Math.round(fluencyScore)));
+
+    // 3. Visual composure component (scale 0-100)
+    const visualRatio = totalVisualFrames > 10 
+        ? Math.round((focusedVisualFrames / totalVisualFrames) * 100) 
+        : 90;
+
+    // 4. Multimodal composite confidence score (0-100%)
+    // 40% verbal assertiveness, 35% visual composure, 25% speech fluency
+    let composite = Math.round((0.40 * verbalScore) + (0.35 * visualRatio) + (0.25 * fluencyScore));
+    composite = Math.max(40, Math.min(98, composite));
+    currentConfidence = composite;
 
     // Update UI elements safely
     const confValEl = document.getElementById('liveConfidenceVal');
     const confBarEl = document.getElementById('liveConfidenceBar');
     const fillerEl = document.getElementById('liveFillerCount');
     const cadenceEl = document.getElementById('liveCadenceVal');
+    const verbalStyleEl = document.getElementById('liveVerbalStyle');
 
     if (confValEl) confValEl.textContent = `${currentConfidence}%`;
     if (confBarEl) {
@@ -1228,6 +1294,20 @@ function analyzeSpeechChunk(text) {
             confValEl.className = 'font-bold text-rose-400';
         }
     }
+
+    if (verbalStyleEl) {
+        if (verbalScore >= 80) {
+            verbalStyleEl.textContent = 'Decisive & Direct';
+            verbalStyleEl.className = 'font-semibold text-emerald-400';
+        } else if (verbalScore >= 65) {
+            verbalStyleEl.textContent = 'Conversational';
+            verbalStyleEl.className = 'font-semibold text-slate-200';
+        } else {
+            verbalStyleEl.textContent = 'Tentative / Hedging';
+            verbalStyleEl.className = 'font-semibold text-amber-400';
+        }
+    }
+
     if (fillerEl) fillerEl.textContent = totalFillerCount;
     if (cadenceEl) {
         if (totalFillerCount > 6) {
@@ -1248,14 +1328,27 @@ function getAggregatedSentimentMetrics() {
     if (currentConfidence >= 80) confLabel = 'High';
     else if (currentConfidence < 65) confLabel = 'Low';
 
+    const visualRatio = totalVisualFrames > 10 
+        ? Math.round((focusedVisualFrames / totalVisualFrames) * 100) 
+        : 90;
+    const verbalScore = Math.max(35, Math.min(98, Math.round(78 + (totalAssertiveCount * 3.5) - (totalHedgingCount * 4))));
+    const fluencyScore = Math.max(35, Math.min(98, Math.round(92 - (totalFillerCount * 3.5))));
+
     return {
         confidence_level: confLabel,
         confidence_score: currentConfidence,
+        confidence_scale_10: Math.max(1, Math.min(10, Math.round(currentConfidence / 10))),
+        verbal_assertiveness_score: verbalScore,
+        visual_composure_score: visualRatio,
+        speech_fluency_score: fluencyScore,
         filler_words_count: totalFillerCount,
+        hedging_phrases_count: totalHedgingCount,
+        assertive_phrases_count: totalAssertiveCount,
+        eye_contact_percentage: visualRatio,
         total_words_spoken: totalWordsSpoken,
         pace_and_fluency: totalFillerCount < 4 
-            ? 'Smooth and confident delivery with minimal hesitation markers.'
-            : `Delivered with moderate hesitation (${totalFillerCount} filler markers recorded).`
+            ? 'Smooth and confident delivery with strong conviction and minimal hesitation.'
+            : `Delivered with moderate hesitation (${totalFillerCount} filler words, ${totalHedgingCount} hedging phrases recorded).`
     };
 }
 

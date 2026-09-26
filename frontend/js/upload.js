@@ -115,7 +115,7 @@ function displaySummary(summary) {
     skillsContainer.innerHTML = '';
     (summary.top_skills || []).forEach(skill => {
         const tag = document.createElement('span');
-        tag.className = 'bg-blue-500/10 text-blue-400 font-medium text-xs px-3 py-1 rounded-full border border-blue-500/20';
+        tag.className = 'liquid-glass-subcard text-[#111114] font-bold text-xs px-3 py-1.5 rounded-full';
         tag.textContent = skill;
         skillsContainer.appendChild(tag);
     });

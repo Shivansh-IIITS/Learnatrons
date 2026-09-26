@@ -5,41 +5,86 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InterviewAI — Live Interview</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { font-family: 'Inter', system-ui, sans-serif; }
-        body { background-color: #0b0f19; color: #f1f5f9; }
+        * { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
         
-        .minimal-card {
-            background: #111827;
-            border: 1px solid #1f293d;
-            border-radius: 20px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        body {
+            background-color: #FFFFFF;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 0, 0, 0.05) 0%, transparent 45%);
+            min-height: 100vh;
+        }
+
+        .liquid-glass-card {
+            background: rgba(12, 12, 16, 0.08);
+            backdrop-filter: blur(28px) saturate(160%);
+            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            border-top: 1px solid rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            box-shadow: 
+                0 24px 50px -12px rgba(0, 0, 0, 0.14),
+                0 0 1px 1px rgba(0, 0, 0, 0.06),
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .liquid-glass-subcard {
+            background: rgba(12, 12, 16, 0.055);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(0, 0, 0, 0.11);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+        }
+
+        .btn-liquid-black {
+            background: #0D0D11;
+            backdrop-filter: blur(12px);
+            color: #FFFFFF;
+            border-radius: 14px;
+            font-weight: 700;
+            border: 1px solid rgba(0, 0, 0, 0.9);
+            box-shadow: 
+                0 8px 24px -4px rgba(0, 0, 0, 0.28),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-liquid-black:hover:not(:disabled) {
+            background: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 14px 32px -4px rgba(0, 0, 0, 0.35);
         }
 
         /* Voice animation ring */
         .voice-ring {
-            width: 100px; height: 100px;
+            width: 86px; height: 86px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             position: relative;
-            background: #0d1322;
+            background: rgba(0, 0, 0, 0.03);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.9);
         }
         .voice-ring::before {
-            content: ''; position: absolute; inset: -4px;
+            content: ''; position: absolute; inset: -3px;
             border-radius: 50%;
-            border: 3px solid transparent;
-            border-top-color: #3b82f6;
+            border: 2.5px solid transparent;
+            border-top-color: #111114;
             animation: none;
         }
         .voice-ring.speaking::before {
             animation: spin 1s linear infinite;
-            border-top-color: #3b82f6;
-            border-right-color: #60a5fa;
+            border-top-color: #111114;
+            border-right-color: #666670;
         }
         .voice-ring.listening::before {
             animation: spin 1.4s linear infinite;
-            border-top-color: #10b981;
+            border-top-color: #059669;
             border-right-color: #34d399;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -49,11 +94,11 @@
             display: flex; align-items: center; gap: 3px; height: 32px;
         }
         .sound-bar {
-            width: 4px; border-radius: 2px;
-            background: #3b82f6;
+            width: 3.5px; border-radius: 2px;
+            background: #111114;
             animation: none;
         }
-        .listening .sound-bar { background: #10b981; }
+        .listening .sound-bar { background: #059669; }
         .speaking .sound-bar, .listening .sound-bar {
             animation: wave 0.6s ease-in-out infinite alternate;
         }
@@ -64,105 +109,93 @@
         .sound-bar:nth-child(5) { animation-delay: 0.4s; }
         @keyframes wave {
             from { height: 6px; }
-            to { height: 28px; }
+            to { height: 26px; }
         }
 
         .idle .sound-bar { animation: none; height: 6px; }
 
         /* Chat messages */
-        .msg-interviewer { background: #0d1322; border: 1px solid #1f293d; border-left: 4px solid #3b82f6; }
-        .msg-candidate { background: #0b1a1f; border: 1px solid #13343b; border-left: 4px solid #10b981; }
+        .msg-interviewer { 
+            background: rgba(0, 0, 0, 0.03); 
+            border: 1px solid rgba(0, 0, 0, 0.06); 
+            border-left: 3.5px solid #111114; 
+        }
+        .msg-candidate { 
+            background: rgba(5, 150, 105, 0.04); 
+            border: 1px solid rgba(5, 150, 105, 0.15); 
+            border-left: 3.5px solid #059669; 
+        }
 
         /* Webcam */
         .webcam-container {
-            position: relative; border-radius: 12px; overflow: hidden;
-            border: 1px solid #1f293d;
-            background: #000;
+            position: relative; border-radius: 16px; overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            background: #0A0A0C;
         }
-        .webcam-container video { width: 100%; border-radius: 10px; transform: scaleX(-1); }
+        .webcam-container video { width: 100%; border-radius: 14px; transform: scaleX(-1); }
         .attention-alert {
             position: absolute; top: 8px; left: 8px; right: 8px;
             background: rgba(220, 38, 38, 0.95); color: white;
-            padding: 4px 12px; border-radius: 8px; font-size: 12px;
-            font-weight: 600; text-align: center;
+            padding: 4px 12px; border-radius: 8px; font-size: 11px;
+            font-weight: 700; text-align: center;
             display: none;
         }
         .attention-alert.show { display: block; animation: fadeIn 0.3s ease; }
 
-        /* High-Impact Instant Integrity Alert Popup */
-        #integrityWarning {
-            position: fixed; top: 24px; right: 24px; z-index: 9999;
-            background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
-            color: white; padding: 14px 22px; border-radius: 12px;
-            font-size: 14px; font-weight: bold;
-            box-shadow: 0 12px 35px rgba(239, 68, 68, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.2);
-            display: none; max-width: 420px;
-            border-left: 5px solid #fecaca;
-            animation: slideDownAlert 0.25s ease-out;
-        }
-        #integrityWarning.show { display: flex; align-items: center; gap: 10px; }
-        @keyframes slideDownAlert { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Face canvas overlay on webcam */
-        .webcam-container canvas {
-            position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%;
-            pointer-events: none;
-        }
-
         .fade-in { animation: fadeIn 0.4s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* Scrollbar */
         .chat-scroll::-webkit-scrollbar { width: 5px; }
-        .chat-scroll::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 3px; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 4px; }
     </style>
 </head>
-<body class="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col">
+<body class="min-h-screen text-[#111114] flex flex-col justify-between">
 
     <!-- Header -->
-    <nav class="bg-[#0e1424] border-b border-[#1f293d] px-6 py-3.5 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
+    <header class="w-full pt-4 px-6">
+        <nav class="max-w-7xl mx-auto liquid-glass-card px-6 py-3.5 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                <div class="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center font-bold shadow-md shadow-black/10 border border-black/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                     </svg>
                 </div>
-                <span class="text-base font-bold text-white">InterviewAI</span>
-                <span class="text-slate-600 mx-1">|</span>
-                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400" id="headerRole">Live Interview</span>
+                <div>
+                    <span class="text-base font-extrabold text-[#111114]">InterviewAI</span>
+                    <span class="text-[#888892] mx-1 text-xs">•</span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-[#44444C]" id="headerRole">Live Interview</span>
+                </div>
             </div>
             <div class="flex items-center gap-3">
                 <button id="toggleCodingBtn" type="button"
-                    class="bg-[#111827] hover:bg-[#1f293d] border border-[#1f293d] text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 shadow-sm">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="liquid-glass-subcard hover:bg-black/[0.05] text-[#111114] text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-2">
+                    <svg class="w-4 h-4 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                     </svg>
                     <span>Live Code Editor</span>
-                    <span id="codingBadge" class="hidden w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span id="codingBadge" class="hidden w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                 </button>
-                <div class="flex items-center gap-2 text-xs bg-[#0d1322] border border-[#1f293d] px-3 py-1.5 rounded-lg font-medium text-slate-300">
-                    <span class="text-slate-400">Question</span>
-                    <span class="text-blue-400 font-bold font-mono" id="questionCounter">1/11</span>
+                <div class="flex items-center gap-2 text-xs liquid-glass-subcard px-3.5 py-2 rounded-xl font-bold text-[#111114]">
+                    <span class="text-[#666670]">Question</span>
+                    <span class="font-mono text-sm font-extrabold" id="questionCounter">1/11</span>
                 </div>
                 <button id="endInterviewBtn"
-                    class="bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-semibold px-3.5 py-1.5 rounded-lg transition shadow-sm">
+                    class="bg-rose-500/10 hover:bg-rose-500/15 border border-rose-500/25 text-rose-700 text-xs font-bold px-4 py-2 rounded-xl transition">
                     End Interview
                 </button>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
     <!-- Main Layout -->
     <main class="max-w-7xl mx-auto px-6 py-6 flex-1 w-full">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6" style="height: calc(100vh - 120px);">
             
-            <!-- Left: Interview conversation -->
+            <!-- Left: Interview Conversation -->
             <div class="lg:col-span-2 flex flex-col">
                 
                 <!-- Voice Status Card -->
-                <div class="minimal-card p-5 mb-4 flex items-center justify-between">
+                <div class="liquid-glass-card p-5 mb-4 flex items-center justify-between">
                     <div class="flex items-center gap-5">
                         <div class="voice-ring idle" id="voiceRing">
                             <div class="sound-bars" id="soundBars">
@@ -174,17 +207,17 @@
                             </div>
                         </div>
                         <div>
-                            <p class="text-base font-bold text-white" id="voiceStatus">Initializing...</p>
-                            <p class="text-xs text-slate-400" id="voiceSubtext">Preparing your interview</p>
+                            <p class="text-base font-extrabold text-[#111114]" id="voiceStatus">Initializing...</p>
+                            <p class="text-xs text-[#666670] font-medium" id="voiceSubtext">Preparing your interview</p>
                         </div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <!-- Microphone Mute / Unmute Button -->
+                        <!-- Microphone Button -->
                         <button id="micBtn" 
-                            class="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#1f293d] bg-[#0d1322] hover:bg-[#161f33] transition-all font-semibold text-xs text-slate-300 shadow-sm" 
+                            class="flex items-center gap-2 px-3.5 py-2.5 rounded-xl liquid-glass-subcard hover:bg-black/[0.05] transition font-bold text-xs text-[#111114]" 
                             title="Toggle Microphone (Mute / Unmute)">
                             <span id="micIconContainer" class="flex items-center justify-center">
-                                <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg class="w-4 h-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                                     <line x1="12" y1="19" x2="12" y2="22"/>
@@ -193,12 +226,12 @@
                             <span id="micBtnLabel" class="hidden sm:inline">Mute Mic</span>
                         </button>
 
-                        <!-- Speaker (AI Voice) Audio Toggle -->
+                        <!-- Speaker Button -->
                         <button id="speakerBtn" 
-                            class="flex items-center justify-center p-2 rounded-xl border border-[#1f293d] bg-[#0d1322] hover:bg-[#161f33] transition-all text-slate-300 shadow-sm" 
+                            class="flex items-center justify-center p-2.5 rounded-xl liquid-glass-subcard hover:bg-black/[0.05] transition text-[#111114]" 
                             title="Toggle AI Voice Sound">
                             <span id="speakerIconContainer" class="flex items-center justify-center">
-                                <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <svg class="w-4 h-4 text-[#111114]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                     <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
                                     <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
                                     <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
@@ -208,29 +241,29 @@
                     </div>
                 </div>
 
-                <!-- Conclusion Banner (shown automatically when interview wraps up) -->
-                <div id="conclusionBanner" class="hidden mb-3 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 fade-in">
+                <!-- Conclusion Banner -->
+                <div id="conclusionBanner" class="hidden mb-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 fade-in">
                     <div class="flex items-center justify-between gap-4 flex-wrap">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-800 flex items-center justify-center shrink-0">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
                                 </svg>
                             </div>
                             <div>
-                                <h3 class="font-bold text-emerald-400 text-sm">Interview Concluded</h3>
-                                <p class="text-xs text-slate-300" id="conclusionCountdown">Generating your evaluation report... Redirecting shortly.</p>
+                                <h3 class="font-extrabold text-emerald-900 text-sm">Interview Concluded</h3>
+                                <p class="text-xs text-emerald-700 font-medium" id="conclusionCountdown">Generating your evaluation report... Redirecting shortly.</p>
                             </div>
                         </div>
-                        <button id="goToReportBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                        <button id="goToReportBtn" class="btn-liquid-black text-xs font-bold px-4 py-2 flex items-center gap-1.5 shadow-sm">
                             <span>View Report Now</span>
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                         </button>
                     </div>
                 </div>
 
                 <!-- Chat Transcript -->
-                <div class="flex-1 minimal-card p-4 overflow-y-auto chat-scroll flex flex-col justify-between" id="chatContainer">
+                <div class="flex-1 liquid-glass-card p-4 overflow-y-auto chat-scroll flex flex-col justify-between" id="chatContainer">
                     <div id="chatMessages" class="space-y-3">
                         <!-- Messages rendered here -->
                     </div>
@@ -239,10 +272,10 @@
                 <!-- Text input fallback -->
                 <div class="mt-3 flex gap-2" id="textInputArea">
                     <button id="inputMicBtn" type="button"
-                        class="px-3.5 py-3 rounded-xl border border-[#1f293d] bg-[#0d1322] hover:bg-[#161f33] transition-all text-slate-300 flex items-center justify-center shrink-0 shadow-sm"
+                        class="px-3.5 py-3 rounded-xl liquid-glass-subcard hover:bg-black/[0.05] transition text-[#111114] flex items-center justify-center shrink-0"
                         title="Toggle Microphone (Mute / Unmute)">
                         <span id="inputMicIcon" class="flex items-center justify-center">
-                            <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <svg class="w-5 h-5 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
                                 <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                                 <line x1="12" y1="19" x2="12" y2="22"/>
@@ -251,30 +284,30 @@
                     </button>
                     <input type="text" id="textAnswer" 
                         placeholder="Type your answer (or speak using the microphone)..."
-                        class="flex-1 bg-[#0d1322] border border-[#1f293d] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition text-sm shadow-sm">
+                        class="flex-1 liquid-glass-subcard px-4 py-3 text-[#111114] placeholder-[#888894] focus:outline-none focus:border-black/30 focus:ring-4 focus:ring-black/5 transition text-sm font-medium">
                     <button id="sendTextBtn" 
-                        class="bg-blue-600 hover:bg-blue-500 text-white font-semibold px-5 py-3 rounded-xl transition flex items-center gap-1.5 text-xs shadow-sm">
+                        class="btn-liquid-black px-5 py-3 text-xs flex items-center gap-1.5 shadow-sm">
                         <span>Send</span>
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                         </svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Right: Webcam + Info -->
+            <!-- Right: Webcam + Telemetry Cards -->
             <div class="flex flex-col gap-4">
                 
-                <!-- Webcam -->
-                <div class="minimal-card p-4">
+                <!-- Webcam Card -->
+                <div class="liquid-glass-card p-4">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-[#111114] flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                             </svg>
                             <span>Webcam Monitor</span>
                         </h3>
-                        <span class="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium" id="webcamStatus">Connecting...</span>
+                        <span class="text-xs bg-emerald-500/10 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-500/20 font-bold" id="webcamStatus">Connecting...</span>
                     </div>
                     <div class="webcam-container">
                         <video id="webcamVideo" autoplay muted playsinline></video>
@@ -283,137 +316,80 @@
                     </div>
                 </div>
 
-                <!-- Interview Info -->
-                <div class="minimal-card p-4">
-                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3">Interview Details</h3>
-                    <div class="space-y-2 text-xs">
+                <!-- Interview Details Card -->
+                <div class="liquid-glass-card p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#111114] mb-3">Interview Details</h3>
+                    <div class="space-y-2.5 text-xs">
                         <div class="flex justify-between">
-                            <span class="text-slate-400">Candidate</span>
-                            <span class="font-bold text-white" id="infoCandidateName">—</span>
+                            <span class="text-[#666670] font-medium">Candidate</span>
+                            <span class="font-extrabold text-[#111114]" id="infoCandidateName">—</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-slate-400">Role</span>
-                            <span class="font-bold text-white" id="infoRole">—</span>
+                            <span class="text-[#666670] font-medium">Role</span>
+                            <span class="font-extrabold text-[#111114]" id="infoRole">—</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-slate-400">Duration</span>
-                            <span class="font-bold font-mono text-white" id="infoDuration">00:00</span>
+                            <span class="text-[#666670] font-medium">Duration</span>
+                            <span class="font-extrabold font-mono text-[#111114]" id="infoDuration">00:00</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-slate-400">Attention Flags</span>
-                            <span class="font-bold text-amber-400" id="infoFlags">0</span>
+                            <span class="text-[#666670] font-medium">Attention Flags</span>
+                            <span class="font-extrabold text-amber-600" id="infoFlags">0</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Integrity Status & Proctoring Telemetry -->
-                <div class="minimal-card p-4">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                            <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                            </svg>
-                            <span>AI Proctor & Telemetry</span>
-                        </h3>
-                        <span id="flagBadge" class="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold bg-slate-800 text-slate-300 border border-slate-700">0 Flags</span>
-                    </div>
-
-                    <!-- Live Status Banner -->
-                    <div id="integrityLiveStatus" class="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-300 text-xs font-semibold mb-3 flex items-center justify-between transition-all">
-                        <span class="flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span id="integrityLiveStatusText">Candidate Monitored Normally</span>
-                        </span>
-                        <span class="text-[10px] uppercase tracking-wider opacity-75 font-mono">LIVE</span>
-                    </div>
-
-                    <!-- Live Telemetry Values (Inspired by MediaPipe Proctor) -->
-                    <div class="grid grid-cols-2 gap-2 text-xs mb-3 font-mono">
-                        <div class="p-2 rounded-lg bg-[#0d1322] border border-[#1f293d] flex justify-between items-center">
-                            <span class="text-slate-400">Faces:</span>
-                            <span id="faceCountVal" class="font-bold text-slate-200">1</span>
+                <!-- Integrity Status Card -->
+                <div class="liquid-glass-card p-4">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-[#111114] mb-3 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        <span>Integrity Telemetry</span>
+                    </h3>
+                    <div class="space-y-2 mb-4">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500" id="tabFocusDot"></span>
+                            <span class="text-xs text-[#111114] font-medium">Tab Focus</span>
                         </div>
-                        <div class="p-2 rounded-lg bg-[#0d1322] border border-[#1f293d] flex justify-between items-center">
-                            <span class="text-slate-400">Pose:</span>
-                            <span id="headPoseVal" class="font-bold text-emerald-400">CENTER</span>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500" id="facePresentDot"></span>
+                            <span class="text-xs text-[#111114] font-medium">Face Present</span>
                         </div>
-                        <div class="p-2 rounded-lg bg-[#0d1322] border border-[#1f293d] flex justify-between items-center">
-                            <span class="text-slate-400">Eyes:</span>
-                            <span id="eyeStatusVal" class="font-bold text-emerald-400">OPEN</span>
-                        </div>
-                        <div class="p-2 rounded-lg bg-[#0d1322] border border-[#1f293d] flex justify-between items-center">
-                            <span class="text-slate-400">EAR:</span>
-                            <span id="earVal" class="font-bold text-slate-300">0.28</span>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500" id="gazeDirectDot"></span>
+                            <span class="text-xs text-[#111114] font-medium">Gaze Direction</span>
                         </div>
                     </div>
 
-                    <!-- Sensor Verification Checklist -->
-                    <div class="space-y-1.5 mb-3 pt-2 border-t border-[#1f293d]">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-300 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400" id="tabFocusDot"></span>
-                                <span>Browser Tab Focus</span>
-                            </span>
-                            <span class="text-[10px] text-slate-500 font-mono">Visible</span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-300 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400" id="facePresentDot"></span>
-                                <span>Candidate Present</span>
-                            </span>
-                            <span class="text-[10px] text-slate-500 font-mono">Verified</span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-300 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400" id="gazeDirectDot"></span>
-                                <span>Gaze Direction</span>
-                            </span>
-                            <span class="text-[10px] text-slate-500 font-mono">On Screen</span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-300 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400" id="eyeOpenDot"></span>
-                                <span>Eyes Open</span>
-                            </span>
-                            <span class="text-[10px] text-slate-500 font-mono">Active</span>
-                        </div>
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-300 flex items-center gap-2">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400" id="singleFaceDot"></span>
-                                <span>Single Person</span>
-                            </span>
-                            <span class="text-[10px] text-slate-500 font-mono">Solo</span>
-                        </div>
-                    </div>
-
-                    <!-- Voice Tone Monitor -->
-                    <div class="pt-3 border-t border-[#1f293d]">
+                    <!-- Voice Tone Monitor Subcard -->
+                    <div class="pt-3 border-t border-black/[0.06]">
                         <div class="flex items-center justify-between mb-2">
-                            <h4 class="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                                <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <h4 class="text-xs font-bold text-[#111114] flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                                 </svg>
                                 <span>Voice Tone & Fluency</span>
                             </h4>
-                            <span class="text-[10px] bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 font-semibold" id="sentimentBadge">Active</span>
+                            <span class="text-[10px] liquid-glass-subcard text-[#111114] px-2 py-0.5 rounded font-bold" id="sentimentBadge">Active</span>
                         </div>
                         <div class="space-y-2">
                             <div>
                                 <div class="flex justify-between text-xs mb-1">
-                                    <span class="text-slate-400">Confidence Score</span>
-                                    <span class="font-bold text-emerald-400" id="liveConfidenceVal">88%</span>
+                                    <span class="text-[#666670]">Confidence Score</span>
+                                    <span class="font-extrabold text-[#111114]" id="liveConfidenceVal">88%</span>
                                 </div>
-                                <div class="w-full bg-[#0d1322] rounded-full h-1.5">
-                                    <div class="bg-emerald-500 h-1.5 rounded-full transition-all duration-300" id="liveConfidenceBar" style="width: 88%"></div>
+                                <div class="w-full bg-black/[0.04] rounded-full h-1.5 border border-black/[0.04]">
+                                    <div class="bg-[#111114] h-1.5 rounded-full transition-all duration-300" id="liveConfidenceBar" style="width: 88%"></div>
                                 </div>
                             </div>
-                            <div class="flex justify-between text-xs pt-1 border-t border-[#1f293d]">
-                                <span class="text-slate-400">Filler Words</span>
-                                <span class="font-semibold text-slate-200" id="liveFillerCount">0</span>
+                            <div class="flex justify-between text-xs pt-1 border-t border-black/[0.06]">
+                                <span class="text-[#666670]">Filler Words</span>
+                                <span class="font-bold text-[#111114]" id="liveFillerCount">0</span>
                             </div>
                             <div class="flex justify-between text-xs">
-                                <span class="text-slate-400">Speech Cadence</span>
-                                <span class="font-semibold text-blue-400" id="liveCadenceVal">Steady & Clear</span>
+                                <span class="text-[#666670]">Speech Cadence</span>
+                                <span class="font-bold text-[#111114]" id="liveCadenceVal">Steady & Clear</span>
                             </div>
                         </div>
                     </div>
@@ -422,104 +398,104 @@
         </div>
     </main>
 
-    <!-- LeetCode-Style Mini Code Challenge Modal -->
-    <div id="codingModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-[#111827] border border-[#1f293d] rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden fade-in">
+    <!-- Coding Challenge Modal -->
+    <div id="codingModal" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white/95 border border-black/10 rounded-3xl shadow-2xl w-full max-w-5xl h-[88vh] flex flex-col overflow-hidden fade-in">
             <!-- Modal Header -->
-            <div class="px-6 py-3.5 border-b border-[#1f293d] bg-[#0d1322] flex items-center justify-between">
+            <div class="px-6 py-3.5 border-b border-black/[0.06] bg-black/[0.02] flex items-center justify-between">
                 <div class="flex items-center gap-3">
-                    <span class="p-2 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                    <span class="p-2 rounded-xl liquid-glass-subcard text-[#111114] flex items-center justify-center">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                         </svg>
                     </span>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="text-sm font-bold text-white" id="codeProblemTitle">Live Coding Challenge</h2>
-                            <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" id="codeProblemDifficulty">Easy</span>
+                            <h2 class="text-sm font-extrabold text-[#111114]" id="codeProblemTitle">Live Coding Challenge</h2>
+                            <span class="text-[10px] px-2 py-0.5 rounded font-bold bg-emerald-500/10 text-emerald-800 border border-emerald-500/20" id="codeProblemDifficulty">Easy</span>
                         </div>
-                        <p class="text-xs text-slate-400">Solve the challenge below. AI evaluates logic and complexity.</p>
+                        <p class="text-xs text-[#666670]">Solve the challenge below. AI evaluates logic and complexity.</p>
                     </div>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="refreshProblemBtn" class="text-xs px-3 py-1.5 rounded-lg bg-[#161f33] hover:bg-[#1f293d] text-slate-300 border border-[#1f293d] transition flex items-center gap-1.5 shadow-sm">
+                    <button id="refreshProblemBtn" class="text-xs px-3 py-1.5 rounded-lg liquid-glass-subcard hover:bg-black/[0.05] text-[#111114] transition flex items-center gap-1.5 font-bold">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                         <span>New Problem</span>
                     </button>
-                    <button id="closeCodingModalBtn" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition">
+                    <button id="closeCodingModalBtn" class="text-[#666670] hover:text-[#111114] p-2 rounded-lg hover:bg-black/[0.05] transition">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
             </div>
 
-            <!-- Modal Body (Two-Column Layout) -->
+            <!-- Modal Body -->
             <div class="flex-1 grid grid-cols-1 lg:grid-cols-2 overflow-hidden">
                 <!-- Left: Problem Description -->
-                <div class="p-6 border-r border-[#1f293d] overflow-y-auto bg-[#0d1322] chat-scroll flex flex-col justify-between">
+                <div class="p-6 border-r border-black/[0.06] overflow-y-auto bg-white chat-scroll flex flex-col justify-between">
                     <div>
                         <div class="mb-4">
-                            <h3 class="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-2">Problem Description</h3>
-                            <p class="text-sm text-slate-200 leading-relaxed whitespace-pre-line" id="codeProblemDescription">
+                            <h3 class="text-xs uppercase tracking-wider font-bold text-[#666670] mb-2">Problem Description</h3>
+                            <p class="text-sm text-[#111114] leading-relaxed whitespace-pre-line font-medium" id="codeProblemDescription">
                                 Loading problem statement tailored to your resume...
                             </p>
                         </div>
 
                         <div class="mb-4">
-                            <h3 class="text-xs uppercase tracking-wider font-semibold text-slate-400 mb-2">Sample Test Cases</h3>
+                            <h3 class="text-xs uppercase tracking-wider font-bold text-[#666670] mb-2">Sample Test Cases</h3>
                             <div class="space-y-2 text-xs font-mono" id="codeTestCases">
-                                <div class="p-3 rounded-xl bg-[#111827] border border-[#1f293d] text-slate-300 shadow-sm">
-                                    <div class="text-blue-400 font-semibold mb-0.5">Input: nums = [2, 7, 11, 15], target = 9</div>
-                                    <div class="text-emerald-400 font-semibold">Expected: [0, 1]</div>
+                                <div class="p-3 rounded-xl liquid-glass-subcard text-[#111114]">
+                                    <div class="text-[#111114] font-bold mb-0.5">Input: nums = [2, 7, 11, 15], target = 9</div>
+                                    <div class="text-emerald-700 font-bold">Expected: [0, 1]</div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Live AI Feedback Panel -->
-                    <div id="evalResultBox" class="mt-4 p-4 rounded-xl border border-[#1f293d] bg-[#111827] shadow-sm hidden">
+                    <div id="evalResultBox" class="mt-4 p-4 rounded-xl border border-black/10 liquid-glass-subcard hidden">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Evaluation Result</span>
-                            <span id="evalStatusBadge" class="text-xs px-2 py-0.5 rounded font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Accepted</span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#666670]">Evaluation Result</span>
+                            <span id="evalStatusBadge" class="text-xs px-2 py-0.5 rounded font-mono font-bold bg-emerald-500/10 text-emerald-800 border border-emerald-500/20">Accepted</span>
                         </div>
                         <div class="grid grid-cols-3 gap-2 text-xs font-mono mb-2">
-                            <div class="bg-[#0d1322] border border-[#1f293d] p-2 rounded">Score: <span class="text-white font-bold" id="evalScore">8/10</span></div>
-                            <div class="bg-[#0d1322] border border-[#1f293d] p-2 rounded">Time: <span class="text-white font-bold" id="evalTime">O(N)</span></div>
-                            <div class="bg-[#0d1322] border border-[#1f293d] p-2 rounded">Space: <span class="text-white font-bold" id="evalSpace">O(1)</span></div>
+                            <div class="bg-white border border-black/[0.06] p-2 rounded">Score: <span class="text-[#111114] font-bold" id="evalScore">8/10</span></div>
+                            <div class="bg-white border border-black/[0.06] p-2 rounded">Time: <span class="text-[#111114] font-bold" id="evalTime">O(N)</span></div>
+                            <div class="bg-white border border-black/[0.06] p-2 rounded">Space: <span class="text-[#111114] font-bold" id="evalSpace">O(1)</span></div>
                         </div>
-                        <p class="text-xs text-slate-300 leading-relaxed" id="evalFeedbackText">Code verified and reviewed.</p>
+                        <p class="text-xs text-[#111114] leading-relaxed font-medium" id="evalFeedbackText">Code verified and reviewed.</p>
                     </div>
                 </div>
 
                 <!-- Right: Code Editor -->
-                <div class="flex flex-col bg-[#0b0f19] p-4 overflow-hidden">
-                    <div class="flex items-center justify-between pb-3 border-b border-[#1f293d] mb-3">
+                <div class="flex flex-col bg-[#0F0F12] p-4 overflow-hidden">
+                    <div class="flex items-center justify-between pb-3 border-b border-white/10 mb-3">
                         <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-400 font-medium">Language:</span>
-                            <select id="codeLanguageSelect" class="bg-[#111827] border border-[#1f293d] text-slate-200 text-xs rounded-lg px-2.5 py-1 focus:outline-none">
+                            <span class="text-xs text-[#888892] font-bold">Language:</span>
+                            <select id="codeLanguageSelect" class="bg-[#1C1C22] border border-white/10 text-white text-xs rounded-lg px-2.5 py-1 focus:outline-none">
                                 <option value="python">Python 3</option>
                                 <option value="javascript">JavaScript (Node.js)</option>
                                 <option value="cpp">C++</option>
                             </select>
                         </div>
-                        <span class="text-xs text-slate-500 font-mono">Tab: 4 spaces</span>
+                        <span class="text-xs text-[#888892] font-mono">Tab: 4 spaces</span>
                     </div>
 
                     <!-- Code Area -->
-                    <div class="flex-1 relative rounded-xl border border-[#1f293d] overflow-hidden bg-[#070a12]">
+                    <div class="flex-1 relative rounded-xl border border-white/10 overflow-hidden bg-[#070709]">
                         <textarea id="codeEditorArea" spellcheck="false"
                             class="w-full h-full p-4 font-mono text-xs text-emerald-400 bg-transparent focus:outline-none resize-none leading-relaxed"
                             placeholder="Write your solution here..."></textarea>
                     </div>
 
                     <!-- Action Bar -->
-                    <div class="flex items-center justify-between pt-3 mt-3 border-t border-[#1f293d]">
-                        <span class="text-xs text-slate-400" id="codeEditorHint">Press Run Code to evaluate with AI Judge</span>
+                    <div class="flex items-center justify-between pt-3 mt-3 border-t border-white/10">
+                        <span class="text-xs text-[#888892]" id="codeEditorHint">Press Run Code to evaluate with AI Judge</span>
                         <div class="flex items-center gap-2">
-                            <button id="runCodeBtn" class="bg-[#161f33] hover:bg-[#1f293d] text-slate-200 text-xs font-semibold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-[#1f293d]">
+                            <button id="runCodeBtn" class="bg-[#1C1C22] hover:bg-[#282830] text-white text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm border border-white/10">
                                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M4.5 3.5v13l11-6.5-11-6.5z"/></svg>
                                 <span>Run Code</span>
                             </button>
-                            <button id="submitCodeBtn" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                            <button id="submitCodeBtn" class="btn-liquid-black px-4 py-2 text-xs flex items-center gap-1.5 shadow-sm">
                                 <span>Submit Solution</span>
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             </button>
@@ -529,9 +505,6 @@
             </div>
         </div>
     </div>
-
-    <!-- MediaPipe Integrity Warning Banner -->
-    <div id="integrityWarning"><span>⚠</span> <span id="integrityWarningText"></span></div>
 
     <script src="js/interview.js"></script>
 </body>

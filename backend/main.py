@@ -363,6 +363,7 @@ async def interview_end(req: EndRequest):
             "technical_score": 1 if num_answers == 0 else 2,
             "problem_solving_score": 1,
             "cultural_fit_score": 1 if num_answers == 0 else 2,
+            "confidence_score": 1 if num_answers == 0 else 2,
             "strengths": [
                 "Insufficient data — the interview was ended before enough questions were answered to identify strengths."
             ],

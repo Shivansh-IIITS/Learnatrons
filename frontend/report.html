@@ -5,147 +5,193 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InterviewAI — Evaluation Report</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { font-family: 'Inter', system-ui, sans-serif; }
-        body { background-color: #0b0f19; color: #f1f5f9; }
+        * { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
         
-        .minimal-card {
-            background: #111827;
-            border: 1px solid #1f293d;
-            border-radius: 20px;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+        body {
+            background-color: #FFFFFF;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(0, 0, 0, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(0, 0, 0, 0.05) 0%, transparent 45%);
+            min-height: 100vh;
         }
+
+        .liquid-glass-card {
+            background: rgba(12, 12, 16, 0.08);
+            backdrop-filter: blur(28px) saturate(160%);
+            -webkit-backdrop-filter: blur(28px) saturate(160%);
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            border-top: 1px solid rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            box-shadow: 
+                0 24px 50px -12px rgba(0, 0, 0, 0.14),
+                0 0 1px 1px rgba(0, 0, 0, 0.06),
+                inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+                inset 0 -1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .liquid-glass-subcard {
+            background: rgba(12, 12, 16, 0.055);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(0, 0, 0, 0.11);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+        }
+
+        .btn-liquid-black {
+            background: #0D0D11;
+            backdrop-filter: blur(12px);
+            color: #FFFFFF;
+            border-radius: 14px;
+            font-weight: 700;
+            border: 1px solid rgba(0, 0, 0, 0.9);
+            box-shadow: 
+                0 8px 24px -4px rgba(0, 0, 0, 0.28),
+                inset 0 1px 1px rgba(255, 255, 255, 0.3);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-liquid-black:hover:not(:disabled) {
+            background: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 14px 32px -4px rgba(0, 0, 0, 0.35);
+        }
+
         .fade-in { animation: fadeIn 0.4s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         
         .score-circle {
             width: 100px; height: 100px;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            background: conic-gradient(#3b82f6 var(--pct, 0%), #1f293d var(--pct, 0%));
+            background: conic-gradient(#111114 var(--pct, 0%), rgba(0, 0, 0, 0.08) var(--pct, 0%));
             position: relative;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
         }
         .score-circle::after {
             content: ''; position: absolute; inset: 10px;
             border-radius: 50%;
-            background: #111827;
+            background: #FFFFFF;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.08);
         }
         .score-value {
             position: relative; z-index: 1;
             font-size: 1.75rem; font-weight: 800;
-            color: #ffffff;
+            color: #111114;
         }
     </style>
 </head>
-<body class="min-h-screen bg-[#0b0f19] text-slate-100">
+<body class="min-h-screen text-[#111114] flex flex-col justify-between">
 
     <!-- Header -->
-    <nav class="bg-[#0e1424] border-b border-[#1f293d] px-6 py-4 sticky top-0 z-40">
-        <div class="max-w-6xl mx-auto flex items-center justify-between">
+    <header class="w-full pt-4 px-6">
+        <nav class="max-w-6xl mx-auto liquid-glass-card px-6 py-3.5 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold">
-                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                <div class="w-9 h-9 rounded-xl bg-black text-white flex items-center justify-center font-bold shadow-md shadow-black/10 border border-black/20">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                     </svg>
                 </div>
-                <span class="text-lg font-bold text-white">InterviewAI</span>
+                <span class="text-lg font-extrabold text-[#111114]">InterviewAI</span>
             </div>
             <div class="flex items-center gap-3">
-                <button onclick="window.print()" class="bg-[#111827] hover:bg-[#1f293d] border border-[#1f293d] text-slate-300 text-xs font-semibold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
+                <button onclick="window.print()" class="liquid-glass-subcard hover:bg-black/[0.05] text-[#111114] text-xs font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-1.5 shadow-sm">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
                     </svg>
                     <span>Print Report</span>
                 </button>
-                <a href="index.html" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-sm">
+                <a href="index.html" class="btn-liquid-black text-xs font-bold px-4 py-2 shadow-sm">
                     New Interview
                 </a>
             </div>
-        </div>
-    </nav>
+        </nav>
+    </header>
 
     <!-- Main Content -->
-    <main class="max-w-5xl mx-auto px-6 py-10">
+    <main class="max-w-5xl mx-auto px-6 py-8 w-full flex-1">
 
-        <!-- Candidate Overview Banner -->
-        <div class="minimal-card p-8 mb-8 fade-in">
+        <!-- Candidate Overview Card -->
+        <div class="liquid-glass-card p-8 mb-8 fade-in">
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-6">
                 <div>
-                    <span class="text-xs uppercase tracking-wider text-blue-400 font-bold">Interview Evaluation Report</span>
-                    <h1 class="text-3xl font-extrabold text-white mt-1" id="candidateName">—</h1>
-                    <p class="text-slate-400 text-sm mt-1" id="roleTitle">Role: —</p>
+                    <span class="text-xs uppercase tracking-wider text-[#666670] font-extrabold">Interview Evaluation Report</span>
+                    <h1 class="text-3xl font-extrabold text-[#111114] mt-1" id="candidateName">—</h1>
+                    <p class="text-[#666670] text-sm mt-1 font-medium" id="roleTitle">Role: —</p>
                 </div>
                 
-                <div class="flex items-center gap-6 bg-[#0d1322] p-4 rounded-2xl border border-[#1f293d]">
+                <div class="flex items-center gap-6 liquid-glass-subcard p-4 rounded-2xl">
                     <div class="score-circle" id="overallScoreCircle">
                         <span class="score-value" id="overallScore">—</span>
                     </div>
                     <div>
-                        <p class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">Overall Rating</p>
-                        <p class="text-lg font-bold text-white" id="overallRating">—</p>
+                        <p class="text-[11px] text-[#666670] uppercase tracking-wider font-bold">Overall Rating</p>
+                        <p class="text-lg font-extrabold text-[#111114]" id="overallRating">—</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Dimension Scores -->
+        <!-- Dimension Scores Grid -->
         <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 fade-in">
-            <div class="minimal-card p-4 text-center">
-                <p class="text-[11px] font-semibold uppercase text-slate-400 mb-1">Role Fit</p>
-                <p class="text-2xl font-bold text-blue-400" id="roleFitScore">—</p>
-                <div class="w-full bg-[#0d1322] rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full" id="roleFitBar" style="width: 0%"></div>
+            <div class="liquid-glass-card p-4 text-center">
+                <p class="text-[11px] font-bold uppercase text-[#666670] mb-1">Role Fit</p>
+                <p class="text-2xl font-extrabold text-[#111114]" id="roleFitScore">—</p>
+                <div class="w-full bg-black/[0.04] rounded-full h-1.5 mt-2 border border-black/[0.04]">
+                    <div class="bg-[#111114] h-1.5 rounded-full" id="roleFitBar" style="width: 0%"></div>
                 </div>
             </div>
-            <div class="minimal-card p-4 text-center">
-                <p class="text-[11px] font-semibold uppercase text-slate-400 mb-1">Technical</p>
-                <p class="text-2xl font-bold text-blue-400" id="techScore">—</p>
-                <div class="w-full bg-[#0d1322] rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full" id="techBar" style="width: 0%"></div>
+            <div class="liquid-glass-card p-4 text-center">
+                <p class="text-[11px] font-bold uppercase text-[#666670] mb-1">Technical</p>
+                <p class="text-2xl font-extrabold text-[#111114]" id="techScore">—</p>
+                <div class="w-full bg-black/[0.04] rounded-full h-1.5 mt-2 border border-black/[0.04]">
+                    <div class="bg-[#111114] h-1.5 rounded-full" id="techBar" style="width: 0%"></div>
                 </div>
             </div>
-            <div class="minimal-card p-4 text-center">
-                <p class="text-[11px] font-semibold uppercase text-slate-400 mb-1">Communication</p>
-                <p class="text-2xl font-bold text-blue-400" id="commScore">—</p>
-                <div class="w-full bg-[#0d1322] rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full" id="commBar" style="width: 0%"></div>
+            <div class="liquid-glass-card p-4 text-center">
+                <p class="text-[11px] font-bold uppercase text-[#666670] mb-1">Communication</p>
+                <p class="text-2xl font-extrabold text-[#111114]" id="commScore">—</p>
+                <div class="w-full bg-black/[0.04] rounded-full h-1.5 mt-2 border border-black/[0.04]">
+                    <div class="bg-[#111114] h-1.5 rounded-full" id="commBar" style="width: 0%"></div>
                 </div>
             </div>
-            <div class="minimal-card p-4 text-center">
-                <p class="text-[11px] font-semibold uppercase text-slate-400 mb-1">Problem Solving</p>
-                <p class="text-2xl font-bold text-blue-400" id="psScore">—</p>
-                <div class="w-full bg-[#0d1322] rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full" id="psBar" style="width: 0%"></div>
+            <div class="liquid-glass-card p-4 text-center">
+                <p class="text-[11px] font-bold uppercase text-[#666670] mb-1">Problem Solving</p>
+                <p class="text-2xl font-extrabold text-[#111114]" id="psScore">—</p>
+                <div class="w-full bg-black/[0.04] rounded-full h-1.5 mt-2 border border-black/[0.04]">
+                    <div class="bg-[#111114] h-1.5 rounded-full" id="psBar" style="width: 0%"></div>
                 </div>
             </div>
-            <div class="minimal-card p-4 text-center col-span-2 md:col-span-1">
-                <p class="text-[11px] font-semibold uppercase text-slate-400 mb-1">Culture Fit</p>
-                <p class="text-2xl font-bold text-blue-400" id="cultureScore">—</p>
-                <div class="w-full bg-[#0d1322] rounded-full h-1.5 mt-2">
-                    <div class="bg-blue-500 h-1.5 rounded-full" id="cultureBar" style="width: 0%"></div>
+            <div class="liquid-glass-card p-4 text-center col-span-2 md:col-span-1">
+                <p class="text-[11px] font-bold uppercase text-[#666670] mb-1">Culture Fit</p>
+                <p class="text-2xl font-extrabold text-[#111114]" id="cultureScore">—</p>
+                <div class="w-full bg-black/[0.04] rounded-full h-1.5 mt-2 border border-black/[0.04]">
+                    <div class="bg-[#111114] h-1.5 rounded-full" id="cultureBar" style="width: 0%"></div>
                 </div>
             </div>
         </div>
 
-        <!-- Recommendation -->
-        <div class="minimal-card p-6 mb-8 fade-in">
-            <h2 class="text-base font-bold text-white mb-2 flex items-center gap-2">
-                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+        <!-- Hiring Recommendation Card -->
+        <div class="liquid-glass-card p-6 mb-8 fade-in">
+            <h2 class="text-base font-extrabold text-[#111114] mb-2 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
                 </svg>
                 <span>Hiring Recommendation</span>
             </h2>
-            <p class="text-slate-300 leading-relaxed text-sm" id="recommendationText">—</p>
+            <p class="text-[#111114] leading-relaxed text-sm font-medium" id="recommendationText">—</p>
         </div>
 
         <!-- Strengths & Gaps (2 columns) -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 fade-in">
             <!-- Strengths -->
-            <div class="minimal-card p-6">
-                <h2 class="text-base font-bold text-emerald-400 mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            <div class="liquid-glass-card p-6">
+                <h2 class="text-base font-extrabold text-emerald-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                     <span>Demonstrated Strengths</span>
                 </h2>
@@ -155,10 +201,10 @@
             </div>
 
             <!-- Areas for Improvement -->
-            <div class="minimal-card p-6">
-                <h2 class="text-base font-bold text-amber-400 mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            <div class="liquid-glass-card p-6">
+                <h2 class="text-base font-extrabold text-amber-800 mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                     </svg>
                     <span>Areas for Improvement</span>
                 </h2>
@@ -171,45 +217,45 @@
         <!-- Integrity & Observations -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 fade-in">
             <!-- Integrity Assessment -->
-            <div class="minimal-card p-6">
-                <h2 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            <div class="liquid-glass-card p-6">
+                <h2 class="text-base font-extrabold text-[#111114] mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                     </svg>
                     <span>Integrity Assessment</span>
                 </h2>
                 <div class="space-y-3">
-                    <div class="flex justify-between items-center bg-[#0d1322] border border-[#1f293d] p-3 rounded-xl">
-                        <span class="text-xs text-slate-400 font-medium">Attention Risk Level</span>
-                        <span class="font-bold text-xs px-2.5 py-0.5 rounded-full" id="integrityRisk">—</span>
+                    <div class="flex justify-between items-center liquid-glass-subcard p-3.5">
+                        <span class="text-xs text-[#666670] font-bold">Attention Risk Level</span>
+                        <span class="font-extrabold text-xs px-3 py-1 rounded-full" id="integrityRisk">—</span>
                     </div>
-                    <div class="flex justify-between items-center bg-[#0d1322] border border-[#1f293d] p-3 rounded-xl">
-                        <span class="text-xs text-slate-400 font-medium">Total Attention Flags</span>
-                        <span class="font-bold text-xs text-white" id="integrityFlags">0</span>
+                    <div class="flex justify-between items-center liquid-glass-subcard p-3.5">
+                        <span class="text-xs text-[#666670] font-bold">Total Attention Flags</span>
+                        <span class="font-extrabold text-xs text-[#111114]" id="integrityFlags">0</span>
                     </div>
-                    <p class="text-xs text-slate-400 mt-2" id="integrityNotes">—</p>
+                    <p class="text-xs text-[#666670] mt-2 font-medium" id="integrityNotes">—</p>
                 </div>
             </div>
 
             <!-- Key Observations -->
-            <div class="minimal-card p-6">
-                <h2 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            <div class="liquid-glass-card p-6">
+                <h2 class="text-base font-extrabold text-[#111114] mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                     </svg>
                     <span>Key Observations</span>
                 </h2>
-                <ul class="space-y-2 text-xs text-slate-300 leading-relaxed" id="observationsList">
+                <ul class="space-y-2 text-xs text-[#111114] font-medium leading-relaxed" id="observationsList">
                     <!-- Populated by JS -->
                 </ul>
             </div>
         </div>
 
         <!-- Follow-up Topics -->
-        <div class="minimal-card p-6 mb-8 fade-in">
-            <h2 class="text-base font-bold text-white mb-3 flex items-center gap-2">
-                <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+        <div class="liquid-glass-card p-6 mb-8 fade-in">
+            <h2 class="text-base font-extrabold text-[#111114] mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                 </svg>
                 <span>Suggested Follow-Up Topics for Next Round</span>
             </h2>
@@ -218,21 +264,21 @@
             </div>
         </div>
 
-        <!-- Coaching Roadmap -->
-        <div class="minimal-card p-6 mb-8 fade-in" id="coachingCard">
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-[#1f293d]">
+        <!-- Coaching Roadmap Card -->
+        <div class="liquid-glass-card p-6 mb-8 fade-in" id="coachingCard">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-3 border-b border-black/[0.06]">
                 <div class="flex items-center gap-3">
-                    <span class="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <span class="w-9 h-9 rounded-xl liquid-glass-subcard text-[#111114] flex items-center justify-center">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
                     </span>
                     <div>
-                        <h2 class="text-base font-bold text-white">Personalized Growth Roadmap</h2>
-                        <p class="text-xs text-slate-400" id="coachingSummary">Tailored preparation plan based on observed gaps</p>
+                        <h2 class="text-base font-extrabold text-[#111114]">Personalized Growth Roadmap</h2>
+                        <p class="text-xs text-[#666670] font-medium" id="coachingSummary">Tailored preparation plan based on observed gaps</p>
                     </div>
                 </div>
-                <div id="readinessBadge" class="self-start md:self-auto px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <div id="readinessBadge" class="self-start md:self-auto px-3.5 py-1.5 rounded-full text-xs font-bold liquid-glass-subcard text-[#111114]">
                     Targeted Prep
                 </div>
             </div>
@@ -241,41 +287,41 @@
             </div>
         </div>
 
-        <!-- Voice Sentiment & Coding Assessment Results -->
+        <!-- Voice Sentiment & Coding Performance Results -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 fade-in">
             <!-- Voice Sentiment & Delivery Assessment -->
-            <div class="minimal-card p-6" id="deliveryCard">
-                <h2 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            <div class="liquid-glass-card p-6" id="deliveryCard">
+                <h2 class="text-base font-extrabold text-[#111114] mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                     </svg>
                     <span>Voice Sentiment & Speech Fluency</span>
                 </h2>
                 <div class="space-y-3">
-                    <div class="flex justify-between items-center bg-[#0d1322] border border-[#1f293d] p-3 rounded-xl">
-                        <span class="text-xs text-slate-400 font-medium">Vocal Confidence</span>
-                        <span class="font-bold text-xs px-2.5 py-0.5 rounded-full" id="deliveryConfidence">—</span>
+                    <div class="flex justify-between items-center liquid-glass-subcard p-3.5">
+                        <span class="text-xs text-[#666670] font-bold">Vocal Confidence</span>
+                        <span class="font-extrabold text-xs px-3 py-1 rounded-full" id="deliveryConfidence">—</span>
                     </div>
-                    <div class="p-3 bg-[#0d1322] border border-[#1f293d] rounded-xl">
-                        <p class="text-[11px] text-slate-400 uppercase tracking-wider font-semibold mb-1">Pacing & Hesitations</p>
-                        <p class="text-xs text-slate-200" id="deliveryPacing">—</p>
+                    <div class="p-3.5 liquid-glass-subcard">
+                        <p class="text-[11px] text-[#666670] uppercase tracking-wider font-bold mb-1">Pacing & Hesitations</p>
+                        <p class="text-xs text-[#111114] font-medium" id="deliveryPacing">—</p>
                     </div>
-                    <div class="p-3 bg-blue-500/10 border border-blue-500/20 rounded-xl">
-                        <p class="text-[11px] text-blue-400 font-bold mb-1">Coach Delivery Tip</p>
-                        <p class="text-xs text-slate-300" id="deliveryTips">—</p>
+                    <div class="p-3.5 bg-black/[0.04] border border-black/[0.07] rounded-xl">
+                        <p class="text-[11px] text-[#111114] font-extrabold mb-1">Coach Delivery Tip</p>
+                        <p class="text-xs text-[#44444C] font-medium" id="deliveryTips">—</p>
                     </div>
                 </div>
             </div>
 
             <!-- Coding Assessment Results -->
-            <div class="minimal-card p-6" id="codingResultsCard">
-                <h2 class="text-base font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="liquid-glass-card p-6" id="codingResultsCard">
+                <h2 class="text-base font-extrabold text-[#111114] mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
                     </svg>
                     <span>Live Coding Assessment</span>
                 </h2>
-                <div id="codingEmptyMsg" class="text-xs text-slate-400 py-6 text-center">
+                <div id="codingEmptyMsg" class="text-xs text-[#666670] py-6 text-center font-medium">
                     No coding challenges submitted during this session.
                 </div>
                 <div id="codingSubmissionsList" class="space-y-3 hidden">
@@ -285,6 +331,11 @@
         </div>
 
     </main>
+
+    <!-- Footer -->
+    <footer class="w-full text-center py-6 text-xs text-[#888892] font-medium">
+        InterviewAI Platform • Powered by Adaptive AI Models
+    </footer>
 
     <script src="js/report.js"></script>
 </body>
