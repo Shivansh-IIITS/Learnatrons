@@ -18,7 +18,10 @@ from llm_service import (
     generate_conclusion_statement, 
     is_conclusion_statement,
     generate_coding_problem,
-    evaluate_code_submission
+    evaluate_code_submission,
+    check_upload_seriousness,
+    check_chat_seriousness,
+    format_conduct_warning
 )
 
 
@@ -132,9 +135,10 @@ def health():
 @app.post("/api/upload-resume")
 async def upload_resume(
     file: UploadFile = File(...),
-    role: str = Form(...)
+    role: str = Form(...),
+    warning_count: int = Form(0)
 ):
-    """Upload a resume PDF and create an interview session."""
+    """Upload a resume PDF and create an interview session with seriousness validation."""
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are accepted.")
     
@@ -146,6 +150,43 @@ async def upload_resume(
     except Exception:
         raise HTTPException(status_code=400, detail="Failed to parse PDF. Please try a different file.")
     
+    # ── CHECK FOR INTENTIONAL NON-SERIOUS CONTENT IN RESUME OR ROLE ──
+    seriousness = check_upload_seriousness(role=role, resume_text=resume_text)
+    if not seriousness.get("is_serious", True):
+        reason = seriousness.get("reason", "Intentional non-serious content detected.")
+        if warning_count >= 1:
+            # Exceeded 1 warning limit
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "blocked",
+                    "blocked": True,
+                    "warning": True,
+                    "warning_count": warning_count + 1,
+                    "max_warnings": 1,
+                    "message": f"Upload blocked: Maximum warning limit reached (1/1). Non-serious content submitted again ({reason}). Please provide an authentic resume and legitimate job role.",
+                    "reason": reason,
+                    "issues": seriousness.get("issues", [])
+                }
+            )
+        else:
+            # Issue the 1 allowed warning for resume or role
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "warning",
+                    "blocked": False,
+                    "warning": True,
+                    "warning_count": 1,
+                    "max_warnings": 1,
+                    "message": f"⚠️ Content Warning (1/1): Intentional non-serious content detected. {reason}. Please upload an authentic professional resume and enter a genuine target role.",
+                    "reason": reason,
+                    "issues": seriousness.get("issues", []),
+                    "role_is_serious": seriousness.get("role_is_serious", True),
+                    "resume_is_serious": seriousness.get("resume_is_serious", True)
+                }
+            )
+
     try:
         resume_summary = summarize_resume(resume_text)
     except Exception as e:
@@ -167,6 +208,10 @@ async def upload_resume(
         "integrity_logs": [],
         "coding_submissions": [],
         "sentiment_metrics": {},
+        "chat_warnings": 0,
+        "max_chat_warnings": 2,
+        "terminated_due_to_conduct": False,
+        "termination_reason": None,
         "status": "ready",
         "evaluation": None,
     }
@@ -201,6 +246,10 @@ def get_or_create_session(session_id: str) -> dict:
             "integrity_logs": [],
             "coding_submissions": [],
             "sentiment_metrics": {},
+            "chat_warnings": 0,
+            "max_chat_warnings": 2,
+            "terminated_due_to_conduct": False,
+            "termination_reason": None,
             "status": "ready",
             "evaluation": None,
         }
@@ -263,9 +312,203 @@ async def interview_respond(req: RespondRequest):
     """Receive candidate's answer and generate the next adaptive question or conclude."""
     session = get_or_create_session(req.session_id)
     
+    # Check if session was already terminated due to conduct violations
+    if session.get("status") == "terminated" or session.get("terminated_due_to_conduct"):
+        return {
+            "question": "This interview has been terminated due to conduct violations. Please review your evaluation report.",
+            "question_number": session["questions_asked"],
+            "total_questions": session["max_questions"],
+            "is_final": True,
+            "concluded": True,
+            "terminated": True,
+            "is_warning": True,
+            "warning_number": session.get("chat_warnings", 2),
+            "max_warnings": 2,
+            "warning_message": "Interview terminated due to conduct violations."
+        }
+    
     # Always ensure session is active
     session["status"] = "active"
     
+    # Retrieve the last interviewer question asked
+    last_interviewer_q = next(
+        (m.get("content") or m.get("text") for m in reversed(session["conversation_history"]) if m.get("role") == "interviewer"),
+        "Could you walk me through your technical experience?"
+    )
+    
+    # ── CHECK FOR INTENTIONAL NON-SERIOUS CHAT CONTENT ──
+    chat_check = check_chat_seriousness(
+        answer=req.answer,
+        last_question=last_interviewer_q,
+        role=session["role"]
+    )
+    
+    if not chat_check.get("is_serious", True):
+        # Intentional non-serious content detected in chat!
+        session["chat_warnings"] = session.get("chat_warnings", 0) + 1
+        w_num = session["chat_warnings"]
+        
+        # Append candidate's answer to history
+        cand_entry = {
+            "role": "candidate", 
+            "content": req.answer, 
+            "text": req.answer, 
+            "timestamp": datetime.now().isoformat(),
+            "flagged_non_serious": True,
+            "warning_number": w_num
+        }
+        session["conversation_history"].append(cand_entry)
+        session["transcript"].append(cand_entry)
+        
+        if w_num == 1:
+            # ━━ 1ST WARNING: Give clear warning and prompt candidate to answer seriously ━━
+            warning_log = {
+                "type": "conduct_warning",
+                "warning_number": 1,
+                "description": f"Warning 1/2: Non-serious / troll response: '{req.answer[:80]}'",
+                "reason": chat_check.get("reason", "Non-serious content"),
+                "timestamp": datetime.now().isoformat()
+            }
+            session["attention_flags"].append(warning_log)
+            session["integrity_logs"].append({
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
+                "reason": f"Conduct Warning 1/2: Non-serious response ('{req.answer[:60]}')"
+            })
+            
+            warning_msg = format_conduct_warning(
+                warning_number=1,
+                role=session["role"],
+                candidate_answer=req.answer,
+                last_question=last_interviewer_q
+            )
+            
+            interviewer_entry = {
+                "role": "interviewer",
+                "content": warning_msg,
+                "text": warning_msg,
+                "timestamp": datetime.now().isoformat(),
+                "is_conduct_warning": True,
+                "warning_number": 1
+            }
+            session["conversation_history"].append(interviewer_entry)
+            session["transcript"].append(interviewer_entry)
+            
+            return {
+                "question": warning_msg,
+                "question_number": session["questions_asked"],
+                "total_questions": session["max_questions"],
+                "is_final": False,
+                "concluded": False,
+                "terminated": False,
+                "is_warning": True,
+                "warning_number": 1,
+                "max_warnings": 2,
+                "warning_message": "Warning 1/2: Non-serious response detected. 1 warning remaining before interview termination."
+            }
+            
+        else:
+            # ━━ 2ND WARNING: TERMINATE THE CHAT IMMEDIATELY ━━
+            session["status"] = "terminated"
+            session["terminated_due_to_conduct"] = True
+            session["termination_reason"] = "Repeated non-serious conduct during interview (2 warnings reached)."
+            
+            term_log = {
+                "type": "conduct_termination",
+                "warning_number": 2,
+                "description": f"Warning 2/2: Interview terminated. Candidate gave 2nd non-serious response: '{req.answer[:80]}'",
+                "reason": chat_check.get("reason", "2nd non-serious response"),
+                "timestamp": datetime.now().isoformat()
+            }
+            session["attention_flags"].append(term_log)
+            session["integrity_logs"].append({
+                "timestamp": datetime.now().strftime("%H:%M:%S"),
+                "reason": "Conduct Warning 2/2: Interview Terminated due to repeated non-serious conduct"
+            })
+            
+            term_msg = format_conduct_warning(
+                warning_number=2,
+                role=session["role"],
+                candidate_answer=req.answer,
+                last_question=last_interviewer_q
+            )
+            
+            interviewer_entry = {
+                "role": "interviewer",
+                "content": term_msg,
+                "text": term_msg,
+                "timestamp": datetime.now().isoformat(),
+                "is_conduct_termination": True,
+                "warning_number": 2
+            }
+            session["conversation_history"].append(interviewer_entry)
+            session["transcript"].append(interviewer_entry)
+            
+            candidate_answers = [m for m in session["conversation_history"] if m.get("role") == "candidate"]
+            evaluation = {
+                "overall_score": 1.0,
+                "overall_rating": "Terminated — Conduct Policy Violation",
+                "role_fit_score": 1,
+                "communication_score": 1,
+                "technical_score": 1,
+                "problem_solving_score": 1,
+                "cultural_fit_score": 1,
+                "confidence_score": 1,
+                "strengths": [
+                    "No substantive strengths demonstrated — candidate was dismissed for unprofessional conduct."
+                ],
+                "areas_for_improvement": [
+                    "Professional Decorum: Candidate repeatedly provided non-serious / troll answers during a formal interview.",
+                    "Accountability: Failed to heed official conduct warning (1/2), resulting in session termination."
+                ],
+                "key_observations": [
+                    f"Interview was terminated early after candidate accumulated 2 conduct warnings for non-serious responses.",
+                    f"Final flagged answer: '{req.answer[:100]}'."
+                ],
+                "integrity_assessment": {
+                    "flags_count": len(session["attention_flags"]),
+                    "risk_level": "Failed",
+                    "notes": "Candidate was disqualified and terminated due to repeated intentional non-serious responses (2 warnings reached)."
+                },
+                "sentiment_and_delivery": {
+                    "confidence_score": 10,
+                    "confidence_level": "Low",
+                    "verbal_assertiveness": "Non-serious / flippant delivery",
+                    "pace_and_fluency": "Disrupted by conduct violations",
+                    "tips": "Take professional interviews seriously and provide authentic technical responses."
+                },
+                "coaching_plan": {
+                    "summary": "Candidate must develop workplace communication decorum before re-interviewing.",
+                    "readiness_verdict": "Disqualified / Needs Foundational Upskilling",
+                    "action_items": [
+                        {
+                            "skill_area": "Professional Conduct",
+                            "action": "Review professional interview etiquette and standard communication standards.",
+                            "recommended_resource": "Professional Workplace Communication Guidelines"
+                        }
+                    ]
+                },
+                "recommendation": "Do Not Hire — Disqualified. Candidate displayed intentional non-serious behavior and received two formal conduct warnings, leading to session termination.",
+                "suggested_follow_up_topics": ["Candidate ineligible for re-interview at this time."],
+                "interview_completeness": f"{len(candidate_answers)}/{session['max_questions']} (Terminated)",
+                "is_incomplete": True,
+                "is_terminated_conduct": True
+            }
+            session["evaluation"] = evaluation
+            
+            return {
+                "question": term_msg,
+                "question_number": session["questions_asked"],
+                "total_questions": session["max_questions"],
+                "is_final": True,
+                "concluded": True,
+                "terminated": True,
+                "is_warning": True,
+                "warning_number": 2,
+                "max_warnings": 2,
+                "warning_message": "Interview Terminated: 2nd warning reached for non-serious conduct."
+            }
+    
+    # ── GENUINE SERIOUS RESPONSE: PROCEED NORMALLY ──
     cand_entry = {"role": "candidate", "content": req.answer, "text": req.answer, "timestamp": datetime.now().isoformat()}
     session["conversation_history"].append(cand_entry)
     session["transcript"].append(cand_entry)
@@ -275,7 +518,6 @@ async def interview_respond(req: RespondRequest):
     num_candidate_answers = len(candidate_answers)
     
     # ── CHECK FOR INTERVIEW CONCLUSION ──
-    # If the candidate has completed all questions (11 turns, within the 10-13 range)
     if num_candidate_answers >= session["max_questions"]:
         session["status"] = "concluded"
         closing_statement = generate_conclusion_statement(
@@ -298,6 +540,8 @@ async def interview_respond(req: RespondRequest):
             "total_questions": session["max_questions"],
             "is_final": True,
             "concluded": True,
+            "terminated": False,
+            "is_warning": False,
         }
     
     # Otherwise, progress to next question
@@ -329,6 +573,8 @@ async def interview_respond(req: RespondRequest):
         "total_questions": session["max_questions"],
         "is_final": is_final or is_concluded,
         "concluded": is_concluded,
+        "terminated": False,
+        "is_warning": False,
     }
 
 
@@ -336,6 +582,10 @@ async def interview_respond(req: RespondRequest):
 async def interview_end(req: EndRequest):
     """End the interview and generate the evaluation report."""
     session = get_or_create_session(req.session_id)
+    
+    # If terminated due to conduct warnings, preserve and return the disqualified evaluation
+    if session.get("terminated_due_to_conduct") and session.get("evaluation"):
+        return {"evaluation": session["evaluation"]}
     
     if session["status"] == "completed" and session["evaluation"]:
         return {"evaluation": session["evaluation"]}
@@ -486,14 +736,50 @@ async def get_session_coding_submissions(session_id: str):
 @app.post("/api/start-interview")
 async def start_interview(
     target_role: str = Form(...),
-    resume: UploadFile = File(...)
+    resume: UploadFile = File(...),
+    warning_count: int = Form(0)
 ):
     """
-    1-step interview startup: Parses resume, creates session, generates 1st question.
+    1-step interview startup: Parses resume, validates seriousness, creates session, generates 1st question.
     (Prev main.py compatibility endpoint)
     """
     file_bytes = await resume.read()
     resume_text = extract_resume_text(file_bytes, resume.filename)
+    
+    # ── CHECK FOR INTENTIONAL NON-SERIOUS CONTENT IN RESUME OR ROLE ──
+    seriousness = check_upload_seriousness(role=target_role, resume_text=resume_text)
+    if not seriousness.get("is_serious", True):
+        reason = seriousness.get("reason", "Intentional non-serious content detected.")
+        if warning_count >= 1:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "blocked",
+                    "blocked": True,
+                    "warning": True,
+                    "warning_count": warning_count + 1,
+                    "max_warnings": 1,
+                    "message": f"Upload blocked: Maximum warning limit reached (1/1). Non-serious content submitted again ({reason}). Please provide an authentic resume and legitimate job role.",
+                    "reason": reason,
+                    "issues": seriousness.get("issues", [])
+                }
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "warning",
+                    "blocked": False,
+                    "warning": True,
+                    "warning_count": 1,
+                    "max_warnings": 1,
+                    "message": f"⚠️ Content Warning (1/1): Intentional non-serious content detected. {reason}. Please provide authentic details.",
+                    "reason": reason,
+                    "issues": seriousness.get("issues", []),
+                    "role_is_serious": seriousness.get("role_is_serious", True),
+                    "resume_is_serious": seriousness.get("resume_is_serious", True)
+                }
+            )
     
     session_id = str(uuid.uuid4())
     try:
@@ -524,6 +810,10 @@ async def start_interview(
         "max_questions": MAX_QUESTIONS,
         "attention_flags": [],
         "integrity_logs": [],
+        "chat_warnings": 0,
+        "max_chat_warnings": 2,
+        "terminated_due_to_conduct": False,
+        "termination_reason": None,
         "status": "active",
         "evaluation": None,
     }
@@ -539,12 +829,128 @@ async def start_interview(
 async def chat_turn(req: ChatRequest):
     """
     Receives spoken/typed answer and returns adaptive follow-up question.
-    (Prev main.py compatibility endpoint)
+    (Prev main.py compatibility endpoint with conduct warning system)
     """
     session = sessions.get(req.session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
+    if session.get("status") == "terminated" or session.get("terminated_due_to_conduct"):
+        return {
+            "session_id": req.session_id,
+            "question": "This interview has been terminated due to repeated conduct violations.",
+            "turn_count": len(session["conversation_history"]) // 2,
+            "concluded": True,
+            "terminated": True,
+            "is_final": True,
+            "is_warning": True,
+            "warning_number": session.get("chat_warnings", 2),
+            "max_warnings": 2
+        }
+
+    last_interviewer_q = next(
+        (m.get("content") or m.get("text") for m in reversed(session["conversation_history"]) if m.get("role") == "interviewer"),
+        "Could you tell me about your technical experience?"
+    )
+
+    # ── CHECK FOR INTENTIONAL NON-SERIOUS CHAT CONTENT ──
+    chat_check = check_chat_seriousness(
+        answer=req.candidate_answer,
+        last_question=last_interviewer_q,
+        role=session["role"]
+    )
+
+    if not chat_check.get("is_serious", True):
+        session["chat_warnings"] = session.get("chat_warnings", 0) + 1
+        w_num = session["chat_warnings"]
+
+        cand_entry = {
+            "role": "candidate",
+            "content": req.candidate_answer,
+            "text": req.candidate_answer,
+            "timestamp": datetime.now().isoformat(),
+            "flagged_non_serious": True,
+            "warning_number": w_num
+        }
+        session["conversation_history"].append(cand_entry)
+        session["transcript"].append(cand_entry)
+
+        if w_num == 1:
+            warning_msg = format_conduct_warning(
+                warning_number=1,
+                role=session["role"],
+                candidate_answer=req.candidate_answer,
+                last_question=last_interviewer_q
+            )
+            interviewer_entry = {
+                "role": "interviewer",
+                "content": warning_msg,
+                "text": warning_msg,
+                "timestamp": datetime.now().isoformat(),
+                "is_conduct_warning": True,
+                "warning_number": 1
+            }
+            session["conversation_history"].append(interviewer_entry)
+            session["transcript"].append(interviewer_entry)
+            session["attention_flags"].append({
+                "type": "conduct_warning",
+                "warning_number": 1,
+                "description": f"Warning 1/2: Non-serious response: '{req.candidate_answer[:80]}'",
+                "timestamp": datetime.now().isoformat()
+            })
+
+            return {
+                "session_id": req.session_id,
+                "question": warning_msg,
+                "turn_count": len(session["conversation_history"]) // 2,
+                "concluded": False,
+                "terminated": False,
+                "is_final": False,
+                "is_warning": True,
+                "warning_number": 1,
+                "max_warnings": 2
+            }
+        else:
+            session["status"] = "terminated"
+            session["terminated_due_to_conduct"] = True
+            session["termination_reason"] = "Repeated non-serious conduct during interview (2 warnings reached)."
+
+            term_msg = format_conduct_warning(
+                warning_number=2,
+                role=session["role"],
+                candidate_answer=req.candidate_answer,
+                last_question=last_interviewer_q
+            )
+            interviewer_entry = {
+                "role": "interviewer",
+                "content": term_msg,
+                "text": term_msg,
+                "timestamp": datetime.now().isoformat(),
+                "is_conduct_termination": True,
+                "warning_number": 2
+            }
+            session["conversation_history"].append(interviewer_entry)
+            session["transcript"].append(interviewer_entry)
+            session["attention_flags"].append({
+                "type": "conduct_termination",
+                "warning_number": 2,
+                "description": f"Warning 2/2: Terminated. 2nd non-serious response: '{req.candidate_answer[:80]}'",
+                "timestamp": datetime.now().isoformat()
+            })
+
+            return {
+                "session_id": req.session_id,
+                "question": term_msg,
+                "turn_count": len(session["conversation_history"]) // 2,
+                "concluded": True,
+                "terminated": True,
+                "is_final": True,
+                "is_warning": True,
+                "warning_number": 2,
+                "max_warnings": 2
+            }
+
+    # Genuine response
     cand_entry = {"role": "candidate", "content": req.candidate_answer, "text": req.candidate_answer, "timestamp": datetime.now().isoformat()}
     session["conversation_history"].append(cand_entry)
     session["transcript"].append(cand_entry)
@@ -567,6 +973,7 @@ async def chat_turn(req: ChatRequest):
             "question": closing,
             "turn_count": len(session["conversation_history"]) // 2,
             "concluded": True,
+            "terminated": False,
             "is_final": True
         }
 
@@ -595,6 +1002,7 @@ async def chat_turn(req: ChatRequest):
         "question": next_question,
         "turn_count": len(session["conversation_history"]) // 2,
         "concluded": is_concluded,
+        "terminated": False,
         "is_final": q_num >= session["max_questions"] or is_concluded
     }
 
@@ -649,6 +1057,20 @@ async def evaluate_interview(session_id: str):
     session = sessions.get(session_id)
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.get("terminated_due_to_conduct") and session.get("evaluation"):
+        flag_count = len(session["integrity_logs"]) + len(session["attention_flags"])
+        return {
+            "session_id": session_id,
+            "target_role": session.get("target_role", session.get("role")),
+            "evaluation": session["evaluation"],
+            "integrity_report": {
+                "status": "Failed / Terminated for Conduct Violation",
+                "total_flags": flag_count,
+                "logs": session["integrity_logs"]
+            },
+            "transcript": session["transcript"]
+        }
 
     if not session.get("evaluation"):
         try:

@@ -8,6 +8,7 @@ import json
 import re
 import urllib.request
 import time
+from typing import Optional, Dict, Any, List, Tuple
 from dotenv import load_dotenv
 
 # Automatically load .env from current directory and workspace root
@@ -29,7 +30,11 @@ from prompts import (
     EVALUATION_PROMPT, 
     CONCLUSION_PROMPT,
     CODING_PROBLEM_PROMPT,
-    CODE_EVALUATION_PROMPT
+    CODE_EVALUATION_PROMPT,
+    UPLOAD_SERIOUSNESS_PROMPT,
+    CHAT_SERIOUSNESS_PROMPT,
+    CONDUCT_WARNING_1_MESSAGE_TEMPLATE,
+    CONDUCT_WARNING_2_TERMINATION_MESSAGE_TEMPLATE
 )
 
 
@@ -776,3 +781,239 @@ def evaluate_code_submission(role: str, title: str, description: str, language: 
                 {"test_id": 2, "passed": has_logic, "details": "Boundary condition validation"}
             ]
         }
+
+
+# =====================================================================
+# INTENTIONAL NON-SERIOUS CONTENT DETECTION & CONDUCT WARNING ENGINE
+# =====================================================================
+
+NON_SERIOUS_ROLES_KEYWORDS = [
+    "clown", "sleeping", "couch potato", "potato", "batman", "superman", 
+    "spiderman", "ironman", "ninja", "troll", "meme lord", "gamer", 
+    "pro gamer", "alien", "god", "president of earth", "world dominator", 
+    "banana", "beer drinker", "tiktok dancer", "tiktok star", "drug dealer", 
+    "hitman", "serial killer", "nothing", "nobody", "idk", "test", "joke", 
+    "fake role", "asdf", "lol", "lmao", "supreme leader", "couch surfing", 
+    "doing nothing", "chilling", "pirate", "space cowboy", "wizard", "jester"
+]
+
+NON_SERIOUS_RESUME_MARKERS = [
+    "lorem ipsum", "dolor sit amet", "sample text sample text", 
+    "rickroll", "never gonna give you up", "never gonna let you down",
+    "bee movie", "according to all known laws of aviation",
+    "shrek is love", "mickey mouse", "homer simpson", "peter griffin",
+    "fortnite wins", "valorant rank", "eating pizza all day", "expert in sleeping",
+    "skills: doing nothing", "drinking beer", "procrastination expert", "trolling online"
+]
+
+NON_SERIOUS_CHAT_KEYWORDS = [
+    "deez nuts", "deez nutz", "skibidi", "amogus", "among us", "ur mom", 
+    "your mom", "your mother", "ligma", "bofa", "never gonna give you up", 
+    "rickroll", "rick roll", "pancake recipe", "fortnite", "sigma male", 
+    "giga chad", "rizz", "gyatt", "hawk tuah", "fanum tax", "baby gronk",
+    "shut up", "you're a bot", "you are a bot", "stupid bot", "dumb ai", 
+    "ask your mom", "why do you care", "what a stupid question", "what a dumb question", 
+    "i don't care", "i don't give a fuck", "i dont care", "just give me the money", 
+    "just give me the job", "i'm not answering that", "i am not answering this", 
+    "waste of time", "fuck you", "stfu", "screw you", "eat shit", "bite me",
+    "hacked nasa with html", "hacked the pentagon", "code with my mind",
+    "ignore previous instructions", "system prompt override", "disregard all previous"
+]
+
+GENUINE_CHAT_PATTERNS = [
+    "i don't know", "i do not know", "i'm not sure", "i am not sure", 
+    "i haven't worked with", "i have not worked with", "could you clarify", 
+    "can you repeat", "could you repeat", "can you please repeat", 
+    "can you rephrase", "could you rephrase", "let me think", "i am a bit nervous",
+    "i'm a bit nervous", "sorry, my bad", "excuse me"
+]
+
+
+def heuristic_check_role(role: str) -> Optional[str]:
+    """Fast rule-based inspection of target role for joke/troll titles."""
+    if not role or not role.strip():
+        return "Role title cannot be empty."
+    r = role.strip().lower()
+    
+    if len(r) < 2:
+        return "Role title is too short to be a valid profession."
+    
+    # Check repeated characters or keyboard mashing
+    if re.search(r"(.)\1{4,}", r):
+        return "Role contains repetitive character gibberish."
+    if re.search(r"^[bcdfghjklmnpqrstvwxyz]{6,}$", r):
+        return "Role appears to be random keyboard mashing."
+    if r in ["asdf", "asdfasdf", "asdfghjkl", "qwerty", "zxcv", "test", "test role", "123", "12345"]:
+        return "Role appears to be placeholder or test text."
+    
+    # Check known troll/joke keywords
+    for kw in NON_SERIOUS_ROLES_KEYWORDS:
+        # Match as whole word or phrase
+        pattern = r"\b" + re.escape(kw) + r"\b"
+        if re.search(pattern, r):
+            return f"Role appears to be a joke or non-serious title ('{kw}')."
+            
+    return None
+
+
+def heuristic_check_resume(resume_text: str) -> Optional[str]:
+    """Fast rule-based inspection of resume text for dummy or troll content."""
+    if not resume_text or not resume_text.strip():
+        return "Resume content is empty or unreadable."
+    
+    text_clean = resume_text.strip().lower()
+    words = text_clean.split()
+    
+    if len(words) < 15:
+        return "Resume contains insufficient content to evaluate qualifications."
+    
+    # Check for known joke/troll markers
+    for marker in NON_SERIOUS_RESUME_MARKERS:
+        if marker in text_clean:
+            return f"Resume contains joke, meme, or placeholder content ('{marker}')."
+            
+    # Check for heavy repetition / lorem ipsum
+    if text_clean.count("lorem") > 2:
+        return "Resume contains Lorem Ipsum placeholder text instead of real experience."
+        
+    return None
+
+
+def check_upload_seriousness(role: str, resume_text: str) -> dict:
+    """
+    Evaluate if an uploaded resume or role contains intentional non-serious content.
+    Returns:
+        dict: {
+            "is_serious": bool,
+            "role_is_serious": bool,
+            "resume_is_serious": bool,
+            "issues": list,
+            "reason": str
+        }
+    """
+    role_issue = heuristic_check_role(role)
+    resume_issue = heuristic_check_resume(resume_text)
+    
+    if role_issue or resume_issue:
+        issues = []
+        if role_issue:
+            issues.append(f"Role issue: {role_issue}")
+        if resume_issue:
+            issues.append(f"Resume issue: {resume_issue}")
+        return {
+            "is_serious": False,
+            "role_is_serious": role_issue is None,
+            "resume_is_serious": resume_issue is None,
+            "issues": issues,
+            "reason": " ".join(issues)
+        }
+        
+    # Heuristics passed, verify with LLM for subtle troll / satirical resumes or roles
+    prompt = UPLOAD_SERIOUSNESS_PROMPT.format(
+        role=role,
+        resume_text=resume_text[:2500]
+    )
+    try:
+        raw_res = call_llm_with_fallback(prompt, max_tokens=300)
+        clean_res = raw_res.strip()
+        if clean_res.startswith("```"):
+            clean_res = clean_res.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        data = json.loads(clean_res)
+        
+        # Ensure standard keys
+        is_serious = bool(data.get("is_serious", True))
+        role_serious = bool(data.get("role_is_serious", is_serious))
+        resume_serious = bool(data.get("resume_is_serious", is_serious))
+        
+        if not is_serious:
+            issues = data.get("issues", [])
+            if not issues and data.get("reason"):
+                issues = [data["reason"]]
+            return {
+                "is_serious": False,
+                "role_is_serious": role_serious,
+                "resume_is_serious": resume_serious,
+                "issues": issues,
+                "reason": data.get("reason", "Intentional non-serious content detected.")
+            }
+            
+        return {
+            "is_serious": True,
+            "role_is_serious": True,
+            "resume_is_serious": True,
+            "issues": [],
+            "reason": "Submission is valid and professional."
+        }
+    except Exception as e:
+        print(f"[Seriousness Check] LLM evaluation fallback: {e}")
+        # If LLM is unreachable and heuristics passed, accept submission
+        return {
+            "is_serious": True,
+            "role_is_serious": True,
+            "resume_is_serious": True,
+            "issues": [],
+            "reason": "Passed standard heuristic validation."
+        }
+
+
+def check_chat_seriousness(answer: str, last_question: str = "", role: str = "") -> dict:
+    """
+    Evaluate if candidate's chat answer contains intentional non-serious, troll, or mockery content.
+    Returns:
+        dict: {"is_serious": bool, "reason": str}
+    """
+    if not answer or not answer.strip():
+        return {"is_serious": False, "reason": "Empty or whitespace response."}
+        
+    clean_ans = answer.strip().lower()
+    words = clean_ans.split()
+    
+    # Check if candidate is asking clarification or admitting lack of knowledge
+    if any(p in clean_ans for p in GENUINE_CHAT_PATTERNS):
+        return {"is_serious": True, "reason": "Candidate provided honest answer or clarification request."}
+        
+    # Check keyboard mash / repetitive characters
+    if len(words) == 1 and len(clean_ans) >= 6 and len(set(clean_ans)) <= 3:
+        return {"is_serious": False, "reason": f"Keyboard mashing or repetitive characters ('{clean_ans}')."}
+        
+    if clean_ans in ["asdf", "asdfasdf", "asdfghjkl", "qwerty", "qwertyuiop", "blah blah", "blah blah blah", "blah blah blah blah", "lalala", "lalalalala", "idk lol"]:
+        return {"is_serious": False, "reason": "Candidate provided non-serious filler or keyboard mashing."}
+        
+    # Check for meme, insult, troll keywords
+    for kw in NON_SERIOUS_CHAT_KEYWORDS:
+        pattern = r"\b" + re.escape(kw) + r"\b"
+        if re.search(pattern, clean_ans):
+            return {"is_serious": False, "reason": f"Candidate response matched non-serious or troll phrase ('{kw}')."}
+            
+    # For answers with more complexity, run quick LLM assessment
+    prompt = CHAT_SERIOUSNESS_PROMPT.format(
+        role=role or "Software Engineer",
+        last_question=last_question or "Interview question",
+        candidate_answer=answer[:600]
+    )
+    try:
+        raw_res = call_llm_with_fallback(prompt, max_tokens=200)
+        clean_res = raw_res.strip()
+        if clean_res.startswith("```"):
+            clean_res = clean_res.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        data = json.loads(clean_res)
+        is_serious = bool(data.get("is_serious", True))
+        return {
+            "is_serious": is_serious,
+            "reason": data.get("reason", "Genuine candidate response" if is_serious else "Intentional non-serious content detected.")
+        }
+    except Exception as e:
+        print(f"[Chat Seriousness Check] LLM evaluation fallback: {e}")
+        return {"is_serious": True, "reason": "Passed standard heuristic validation."}
+
+
+def format_conduct_warning(warning_number: int, role: str, candidate_answer: str = "", last_question: str = "") -> str:
+    """Format the interviewer's spoken conduct warning."""
+    if warning_number == 1:
+        return CONDUCT_WARNING_1_MESSAGE_TEMPLATE.format(
+            role=role or "this position",
+            last_question=last_question or "Could you address the question from a technical perspective?"
+        )
+    else:
+        return CONDUCT_WARNING_2_TERMINATION_MESSAGE_TEMPLATE
+
