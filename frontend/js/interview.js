@@ -42,6 +42,11 @@ const attentionAlert = document.getElementById('attentionAlert');
 const conclusionBanner = document.getElementById('conclusionBanner');
 const conclusionCountdown = document.getElementById('conclusionCountdown');
 const goToReportBtn = document.getElementById('goToReportBtn');
+const chatWarningBanner = document.getElementById('chatWarningBanner');
+const chatWarningSubtext = document.getElementById('chatWarningSubtext');
+const terminationBanner = document.getElementById('terminationBanner');
+const terminationCountdown = document.getElementById('terminationCountdown');
+const viewTerminatedReportBtn = document.getElementById('viewTerminatedReportBtn');
 const webcamVideo = document.getElementById('webcamVideo');
 const infoCandidateName = document.getElementById('infoCandidateName');
 const infoRole = document.getElementById('infoRole');
@@ -62,6 +67,8 @@ let isMicMuted = false;
 let isSpeakerMuted = false;
 let interviewActive = false;
 let isConcluded = false;
+let chatWarningsCount = 0;
+let isTerminatedDueToConduct = false;
 let currentQuestion = 0;
 let totalQuestions = 11;
 let attentionFlags = [];
@@ -358,16 +365,30 @@ function setVoiceState(state) {
 }
 
 // ── Chat Messages ───────────────────────────────────────────────────────────
-function addMessage(role, text) {
+function addMessage(role, text, isWarning = false, isTermination = false) {
     const div = document.createElement('div');
-    div.className = `p-4 rounded-xl fade-in ${role === 'interviewer' ? 'msg-interviewer' : 'msg-candidate'}`;
+    if (isTermination) {
+        div.className = 'p-4 rounded-xl fade-in bg-rose-500/10 border-2 border-rose-500/40 shadow-sm';
+    } else if (isWarning) {
+        div.className = 'p-4 rounded-xl fade-in bg-amber-500/10 border-2 border-amber-500/40 shadow-sm';
+    } else {
+        div.className = `p-4 rounded-xl fade-in ${role === 'interviewer' ? 'msg-interviewer' : 'msg-candidate'}`;
+    }
     
     const label = document.createElement('p');
-    label.className = 'text-xs font-extrabold mb-1 ' + (role === 'interviewer' ? 'text-[#111114]' : 'text-emerald-700');
-    label.textContent = role === 'interviewer' ? 'AI Interviewer' : candidateName;
+    if (isTermination) {
+        label.className = 'text-xs font-black mb-1 text-rose-700 flex items-center gap-1.5';
+        label.innerHTML = '<span>🛑 AI Interviewer — TERMINATION NOTICE (2/2)</span>';
+    } else if (isWarning) {
+        label.className = 'text-xs font-black mb-1 text-amber-800 flex items-center gap-1.5';
+        label.innerHTML = '<span>⚠️ AI Interviewer — CONDUCT WARNING (1/2)</span>';
+    } else {
+        label.className = 'text-xs font-extrabold mb-1 ' + (role === 'interviewer' ? 'text-[#111114]' : 'text-emerald-700');
+        label.textContent = role === 'interviewer' ? 'AI Interviewer' : candidateName;
+    }
     
     const content = document.createElement('p');
-    content.className = 'text-[#111114] text-sm leading-relaxed font-medium';
+    content.className = 'text-[#111114] text-sm leading-relaxed font-medium whitespace-pre-line';
     content.textContent = text;
     
     div.appendChild(label);
@@ -452,6 +473,35 @@ async function submitAnswer(answer) {
         totalQuestions = data.total_questions || totalQuestions;
         questionCounter.textContent = `${currentQuestion}/${totalQuestions}`;
 
+        // ── Check if response is a conduct warning ──
+        if (data.is_warning) {
+            if (data.warning_number >= 2 || data.terminated) {
+                // ━━ 2ND WARNING: End the chat immediately ━━
+                chatWarningsCount = 2;
+                isTerminatedDueToConduct = true;
+                addMessage('interviewer', data.question, false, true);
+                isProcessing = false;
+                await handleInterviewTerminated(data.question);
+                return;
+            } else {
+                // ━━ 1ST WARNING: Issue warning banner and let candidate answer seriously ━━
+                chatWarningsCount = 1;
+                if (chatWarningBanner) chatWarningBanner.classList.remove('hidden');
+                if (chatWarningSubtext) {
+                    chatWarningSubtext.textContent = data.warning_message || 'Non-serious response detected. A second warning will immediately terminate this interview.';
+                }
+                addMessage('interviewer', data.question, true, false);
+                isProcessing = false;
+                await speakText(data.question);
+                return;
+            }
+        }
+
+        // If candidate gave a serious response, hide the warning banner
+        if (chatWarningBanner && !data.is_warning) {
+            chatWarningBanner.classList.add('hidden');
+        }
+
         // Show the interviewer message (either next question or concluding remarks)
         addMessage('interviewer', data.question);
         isProcessing = false;
@@ -481,6 +531,92 @@ async function submitAnswer(answer) {
         if (!textAnswer.value) {
             textAnswer.value = prevAnswer;
         }
+    }
+}
+
+// ── Automatic Termination Handler for 2nd Warning ───────────────────────────
+let terminationCountdownInterval = null;
+
+async function handleInterviewTerminated(terminationText) {
+    if (isConcluded) return;
+    isConcluded = true;
+    interviewActive = false;
+    clearInterval(countdownInterval);
+
+    // 1. Permanently stop mic and lock all inputs
+    stopListening();
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+    if (textAnswer) {
+        textAnswer.value = '';
+        textAnswer.disabled = true;
+        textAnswer.placeholder = 'Interview terminated due to conduct violations.';
+    }
+    if (sendTextBtn) sendTextBtn.disabled = true;
+    if (inputMicBtn) inputMicBtn.disabled = true;
+    if (micBtn) micBtn.disabled = true;
+
+    // 2. Hide other banners and reveal termination banner
+    if (chatWarningBanner) chatWarningBanner.classList.add('hidden');
+    if (conclusionBanner) conclusionBanner.classList.add('hidden');
+    if (terminationBanner) terminationBanner.classList.remove('hidden');
+
+    // 3. Update header button to red Disqualified
+    if (endInterviewBtn) {
+        endInterviewBtn.className = 'bg-rose-700 hover:bg-rose-800 text-white text-xs font-semibold px-4 py-2 rounded-lg transition shadow-sm';
+        endInterviewBtn.textContent = 'Disqualified — View Report';
+    }
+
+    // 4. Update voice card
+    setVoiceState('idle');
+    voiceStatus.textContent = 'Interview Terminated';
+    voiceSubtext.textContent = '2nd conduct warning reached for non-serious responses.';
+
+    // 5. Speak termination remark
+    await speakText(terminationText);
+
+    // 6. Fetch terminated evaluation report in background
+    try {
+        const res = await fetch(`${API_BASE}/api/interview/end`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                session_id: sessionId,
+                attention_flags: attentionFlags
+            }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.evaluation) {
+                localStorage.setItem('interviewai_evaluation', JSON.stringify(data.evaluation));
+            }
+        }
+    } catch (e) {
+        console.error('Error fetching terminated evaluation:', e);
+    }
+
+    // 7. Auto-redirect countdown (4 seconds)
+    let secondsLeft = 4;
+    if (terminationCountdown) {
+        terminationCountdown.innerHTML = `Terminated for repeated non-serious conduct. Redirecting in <strong class="text-rose-950 font-bold">${secondsLeft}s</strong>...`;
+    }
+
+    terminationCountdownInterval = setInterval(() => {
+        secondsLeft--;
+        if (secondsLeft > 0) {
+            if (terminationCountdown) {
+                terminationCountdown.innerHTML = `Terminated for repeated non-serious conduct. Redirecting in <strong class="text-rose-950 font-bold">${secondsLeft}s</strong>...`;
+            }
+        } else {
+            clearInterval(terminationCountdownInterval);
+            window.location.href = 'report.html';
+        }
+    }, 1000);
+
+    if (viewTerminatedReportBtn) {
+        viewTerminatedReportBtn.onclick = () => {
+            clearInterval(terminationCountdownInterval);
+            window.location.href = 'report.html';
+        };
     }
 }
 
