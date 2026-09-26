@@ -25,3 +25,6 @@ ARCHITECTURE.md
 .DS_Store
 .vscode/
 .idea/
+*.mp3
+tts_cache/
+backend/tts_cache/

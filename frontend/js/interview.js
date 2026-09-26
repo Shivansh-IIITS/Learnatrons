@@ -116,11 +116,11 @@ function updateControlsUI() {
             }
         } else {
             if (micBtn) {
-                micBtn.className = 'flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-white/10 bg-white/10 hover:bg-white/20 text-gray-200 font-medium text-sm transition-all shadow-sm';
+                micBtn.className = 'flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-black/10 bg-black/[0.04] hover:bg-black/[0.08] text-[#111114] font-medium text-sm transition-all shadow-sm';
                 micBtn.title = 'Microphone active — Click to mute';
             }
             if (inputMicBtn) {
-                inputMicBtn.className = 'px-3.5 py-3 rounded-xl border border-white/10 bg-white/10 hover:bg-white/20 text-gray-300 transition-all flex items-center justify-center shrink-0 shadow-sm';
+                inputMicBtn.className = 'px-3.5 py-3 rounded-xl border border-black/10 bg-black/[0.04] hover:bg-black/[0.08] text-[#111114] transition-all flex items-center justify-center shrink-0 shadow-sm';
                 inputMicBtn.title = 'Click to mute microphone';
             }
         }
@@ -130,11 +130,11 @@ function updateControlsUI() {
     if (speakerBtn && speakerIconContainer) {
         if (isSpeakerMuted) {
             speakerIconContainer.innerHTML = SPEAKER_OFF_SVG;
-            speakerBtn.className = 'flex items-center justify-center p-2.5 rounded-xl border border-rose-500/40 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 transition-all shadow-sm';
+            speakerBtn.className = 'flex items-center justify-center p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/15 hover:bg-rose-500/25 text-rose-800 transition-all shadow-sm';
             speakerBtn.title = 'AI voice audio is muted — Click to unmute speaker';
         } else {
             speakerIconContainer.innerHTML = SPEAKER_ON_SVG;
-            speakerBtn.className = 'flex items-center justify-center p-2.5 rounded-xl border border-white/10 bg-white/10 hover:bg-white/20 text-gray-200 transition-all shadow-sm';
+            speakerBtn.className = 'flex items-center justify-center p-2.5 rounded-xl border border-black/10 bg-black/[0.04] hover:bg-black/[0.08] text-[#111114] transition-all shadow-sm';
             speakerBtn.title = 'Click to mute AI voice audio';
         }
     }
@@ -159,8 +159,17 @@ function toggleMicMute() {
 
 function toggleSpeakerMute() {
     isSpeakerMuted = !isSpeakerMuted;
-    if (isSpeakerMuted && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
+    if (isSpeakerMuted) {
+        if (currentAudioPlayer) {
+            try {
+                currentAudioPlayer.pause();
+                currentAudioPlayer.currentTime = 0;
+            } catch (e) {}
+            currentAudioPlayer = null;
+        }
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
     }
     updateControlsUI();
 }
@@ -179,6 +188,14 @@ durationInterval = setInterval(() => {
 }, 1000);
 
 
+// ── Speech Recognition & Neural TTS State ─────────────────────────────────
+let finalTranscript = '';
+let interimTranscript = '';
+let silenceDebounceTimer = null;
+let recognitionRestartTimer = null;
+let currentAudioPlayer = null;
+const SILENCE_TIMEOUT_MS = 2200; // 2.2s of natural pause before auto-submitting answer
+
 // ── Speech Recognition (STT) ───────────────────────────────────────────────
 function initSpeechRecognition() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -188,84 +205,149 @@ function initSpeechRecognition() {
     }
 
     recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = true;
+    recognition.continuous = true;       // Continuous recognition across pauses & multiple sentences
+    recognition.interimResults = true;    // Live feedback while candidate is speaking
+    recognition.maxAlternatives = 1;
     recognition.lang = 'en-US';
 
     recognition.onstart = () => {
         isListening = true;
         setVoiceState('listening');
-        textAnswer.placeholder = 'Listening... speak now';
+        textAnswer.placeholder = 'Listening... Speak naturally (pauses supported)';
         updateControlsUI();
     };
 
     recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
+        interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const piece = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+                finalTranscript += (finalTranscript.length > 0 && !finalTranscript.endsWith(' ') ? ' ' : '') + piece.trim();
+            } else {
+                interimTranscript += piece;
+            }
         }
-        textAnswer.value = transcript;
-        
-        if (event.results[event.results.length - 1].isFinal) {
-            // Final result — auto-send
-            isListening = false;
-            setVoiceState('processing');
-            updateControlsUI();
-            setTimeout(() => submitAnswer(transcript), 300);
+
+        const combinedText = (finalTranscript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+        if (combinedText) {
+            textAnswer.value = combinedText;
+            
+            // Visual dynamic feedback: animate sound bars when speech is detected
+            if (voiceRing) {
+                voiceRing.className = 'voice-ring listening';
+            }
+            if (soundBars) {
+                soundBars.className = 'sound-bars listening';
+            }
+        }
+
+        // Reset silence timer on every spoken word
+        if (silenceDebounceTimer) {
+            clearTimeout(silenceDebounceTimer);
+        }
+
+        // Natural pause detection: wait 2.2s of silence before auto-submitting
+        if (combinedText.length > 0 && !isSpeaking && !isProcessing && interviewActive && !isConcluded) {
+            silenceDebounceTimer = setTimeout(() => {
+                const answerToSubmit = (finalTranscript + (interimTranscript ? ' ' + interimTranscript : '')).trim();
+                if (answerToSubmit.length > 0 && isListening && !isProcessing && !isSpeaking && interviewActive && !isConcluded) {
+                    finalTranscript = '';
+                    interimTranscript = '';
+                    stopListening();
+                    setVoiceState('processing');
+                    submitAnswer(answerToSubmit);
+                }
+            }, SILENCE_TIMEOUT_MS);
         }
     };
 
     recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        isListening = false;
-        if (event.error !== 'aborted') {
-            setVoiceState('idle');
-            textAnswer.placeholder = isMicMuted ? 'Mic is muted. Click Unmute or type below...' : 'Type your answer or click mic to speak...';
+        if (event.error === 'no-speech') {
+            // Normal silence interval, keep listening alive
+            return;
         }
-        updateControlsUI();
+        if (event.error !== 'aborted') {
+            console.warn('Speech recognition warning:', event.error);
+            if (event.error === 'not-allowed') {
+                isMicMuted = true;
+                setVoiceState('idle');
+                textAnswer.placeholder = 'Microphone permission blocked. Please type your answer below.';
+                updateControlsUI();
+            }
+        }
     };
 
     recognition.onend = () => {
         isListening = false;
-        if (interviewActive && !isProcessing && !isSpeaking) {
-            setVoiceState('idle');
-            textAnswer.placeholder = isMicMuted ? 'Mic is muted. Click Unmute or type below...' : 'Type your answer or speak...';
+        // If interview is active and candidate should be speaking, seamlessly keep listening
+        if (interviewActive && !isSpeaking && !isProcessing && !isMicMuted && !isConcluded) {
+            if (recognitionRestartTimer) clearTimeout(recognitionRestartTimer);
+            recognitionRestartTimer = setTimeout(() => {
+                if (interviewActive && !isSpeaking && !isProcessing && !isMicMuted && !isConcluded) {
+                    startListening();
+                }
+            }, 250);
+        } else {
+            updateControlsUI();
         }
-        updateControlsUI();
     };
 
     updateControlsUI();
 }
 
 function startListening() {
-    if (isMicMuted) return;
-    if (recognition && !isListening && !isSpeaking && !isProcessing) {
-        textAnswer.value = '';
+    if (isMicMuted || isSpeaking || isProcessing || !interviewActive || isConcluded) return;
+    if (recognition && !isListening) {
+        finalTranscript = textAnswer.value.trim();
+        interimTranscript = '';
         try {
             recognition.start();
         } catch (e) {
-            // Already started
+            // Already started or starting
         }
     }
 }
 
 function stopListening() {
-    if (recognition && isListening) {
+    if (silenceDebounceTimer) {
+        clearTimeout(silenceDebounceTimer);
+        silenceDebounceTimer = null;
+    }
+    if (recognitionRestartTimer) {
+        clearTimeout(recognitionRestartTimer);
+        recognitionRestartTimer = null;
+    }
+    if (recognition) {
         try {
             recognition.stop();
         } catch (e) {}
     }
+    isListening = false;
+    updateControlsUI();
 }
 
-// ── Speech Synthesis (TTS) ──────────────────────────────────────────────────
+// ── Speech Synthesis (TTS) — Ultra-Realistic Neural Voice (edge-tts) ─────────
+function cleanTextForSpeech(text) {
+    if (!text) return '';
+    return text
+        .replace(/[*_#`~>]/g, '')                // Remove markdown formatting
+        .replace(/\[.*?\]\(.*?\)/g, '')          // Remove links
+        .replace(/⚠️|🛑|✅|💡|🎯|📊/g, '')        // Remove emoji artifacts
+        .replace(/\n+/g, '. ')                   // Replace line breaks with periods for natural pauses
+        .replace(/\s+/g, ' ')                    // Normalize whitespace
+        .trim();
+}
+
 function speakText(text) {
     return new Promise((resolve) => {
-        if (isSpeakerMuted || !window.speechSynthesis) {
-            // AI audio is muted — visually display speaking state for readability without playing voice
+        // Stop any active listener while interviewer is speaking
+        stopListening();
+
+        if (isSpeakerMuted) {
             setVoiceState('speaking');
             setTimeout(() => {
                 isSpeaking = false;
-                if (interviewActive && !isProcessing) {
+                if (interviewActive && !isProcessing && !isConcluded) {
                     setTimeout(() => {
                         setVoiceState('idle');
                         if (!isMicMuted) {
@@ -281,50 +363,94 @@ function speakText(text) {
             return;
         }
 
-        // Cancel any ongoing speech
-        window.speechSynthesis.cancel();
+        // Cancel previous audio if playing
+        if (currentAudioPlayer) {
+            try {
+                currentAudioPlayer.pause();
+                currentAudioPlayer.currentTime = 0;
+            } catch (e) {}
+            currentAudioPlayer = null;
+        }
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.0;
-        utterance.pitch = 1.0;
-        utterance.volume = 1.0;
-
-        // Try to pick a natural-sounding voice
-        const voices = window.speechSynthesis.getVoices();
-        const preferred = voices.find(v => 
-            v.name.includes('Google') && v.lang.startsWith('en')
-        ) || voices.find(v => v.lang.startsWith('en') && !v.name.includes('Zira'));
-        if (preferred) utterance.voice = preferred;
-
-        utterance.onstart = () => {
-            isSpeaking = true;
-            setVoiceState('speaking');
-        };
-
-        utterance.onend = () => {
-            isSpeaking = false;
+        const spokenContent = cleanTextForSpeech(text);
+        if (!spokenContent) {
             resolve();
-            // Auto-start listening after AI finishes speaking (only if not muted)
-            if (interviewActive && !isProcessing) {
+            return;
+        }
+
+        setVoiceState('speaking');
+        voiceStatus.textContent = 'AI Interviewer Speaking';
+        voiceSubtext.textContent = 'Listen carefully to the question...';
+        isSpeaking = true;
+
+        // Stream edge-tts neural voice (en-US-JennyNeural, rate="-3%") from backend
+        const ttsUrl = `${API_BASE}/api/tts?text=${encodeURIComponent(spokenContent)}&voice=en-US-JennyNeural&rate=-3%25`;
+        const audio = new Audio(ttsUrl);
+        currentAudioPlayer = audio;
+
+        let hasResolved = false;
+        const finishSpeaking = () => {
+            if (hasResolved) return;
+            hasResolved = true;
+            isSpeaking = false;
+            currentAudioPlayer = null;
+            resolve();
+
+            // After AI finishes speaking, wait 400ms buffer, then smoothly start listening!
+            if (interviewActive && !isProcessing && !isConcluded) {
                 setTimeout(() => {
                     setVoiceState('idle');
                     if (!isMicMuted) {
-                        voiceSubtext.textContent = 'Speak your answer or type below';
+                        voiceStatus.textContent = 'Listening to You';
+                        voiceSubtext.textContent = 'Speak your answer naturally (pauses supported) or type below';
+                        finalTranscript = '';
+                        interimTranscript = '';
                         startListening();
                     } else {
                         voiceSubtext.textContent = 'Mic is muted — Click Unmute or type below';
                     }
-                }, 500);
+                }, 400);
             }
         };
 
-        utterance.onerror = () => {
-            isSpeaking = false;
-            resolve();
+        audio.onended = finishSpeaking;
+
+        audio.onerror = (e) => {
+            console.warn('[Audio Stream Fallback] edge-tts error, falling back to Web Speech API:', e);
+            fallbackWebSpeech(spokenContent, finishSpeaking);
         };
 
-        window.speechSynthesis.speak(utterance);
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+                console.warn('[Audio Autoplay Notice] Autoplay restricted or playback error, fallback to Web Speech:', err);
+                fallbackWebSpeech(spokenContent, finishSpeaking);
+            });
+        }
     });
+}
+
+function fallbackWebSpeech(text, callback) {
+    if (!window.speechSynthesis) {
+        callback();
+        return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.97;
+    utterance.pitch = 1.0;
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v => 
+        v.name.includes('Jenny') || v.name.includes('Aria') || v.name.includes('Google') || v.name.includes('Natural') || (v.lang.startsWith('en') && !v.name.includes('Zira'))
+    );
+    if (preferred) utterance.voice = preferred;
+
+    utterance.onend = callback;
+    utterance.onerror = callback;
+    window.speechSynthesis.speak(utterance);
 }
 
 // Load voices
@@ -661,14 +787,14 @@ async function handleInterviewConcluded(closingText) {
     // 6. Automatic countdown to evaluation report page (3 seconds)
     let secondsLeft = 3;
     if (conclusionCountdown) {
-        conclusionCountdown.innerHTML = `All questions complete! Loading evaluation report in <strong class="text-emerald-300 font-bold">${secondsLeft}s</strong>...`;
+        conclusionCountdown.innerHTML = `All questions complete! Loading evaluation report in <strong class="text-emerald-950 font-bold">${secondsLeft}s</strong>...`;
     }
 
     countdownInterval = setInterval(() => {
         secondsLeft--;
         if (secondsLeft > 0) {
             if (conclusionCountdown) {
-                conclusionCountdown.innerHTML = `All questions complete! Loading evaluation report in <strong class="text-emerald-300 font-bold">${secondsLeft}s</strong>...`;
+                conclusionCountdown.innerHTML = `All questions complete! Loading evaluation report in <strong class="text-emerald-950 font-bold">${secondsLeft}s</strong>...`;
             }
         } else {
             clearInterval(countdownInterval);
@@ -780,6 +906,12 @@ window.addEventListener('keydown', (e) => {
 sendTextBtn.addEventListener('click', () => {
     const answer = textAnswer.value.trim();
     if (answer && !isProcessing && !isConcluded) {
+        finalTranscript = '';
+        interimTranscript = '';
+        if (silenceDebounceTimer) {
+            clearTimeout(silenceDebounceTimer);
+            silenceDebounceTimer = null;
+        }
         stopListening();
         setVoiceState('processing');
         submitAnswer(answer);

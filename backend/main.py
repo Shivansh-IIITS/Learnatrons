@@ -3,14 +3,18 @@ InterviewAI — FastAPI Backend
 All routes for the AI-powered interview platform (supports both standard and teammate API schemas).
 """
 import uuid
+import os
+import hashlib
 from datetime import datetime
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 
 from resume_parser import extract_text_from_pdf
+from speaker import generate_speech_bytes
 from llm_service import (
     summarize_resume, 
     generate_question, 
@@ -120,12 +124,54 @@ class EvaluationSchema(BaseModel):
     technical_assessment: str
     communication_assessment: str
 
+class TTSRequest(BaseModel):
+    text: str
+    voice: Optional[str] = "en-US-JennyNeural"
+    rate: Optional[str] = "-3%"
+
 
 # ── Routes ───────────────────────────────────────────────────────────────────
 
 @app.get("/api/health")
 def health():
     return {"status": "ok", "service": "InterviewAI"}
+
+
+TTS_CACHE_DIR = os.path.join(os.path.dirname(__file__), "tts_cache")
+os.makedirs(TTS_CACHE_DIR, exist_ok=True)
+
+@app.get("/api/tts")
+async def tts_stream_get(text: str, voice: str = "en-US-JennyNeural", rate: str = "-3%"):
+    """
+    Generate and stream ultra-realistic Neural TTS (edge-tts en-US-JennyNeural / en-US-AriaNeural).
+    Includes on-disk caching by hash for low latency and zero repeated generation cost.
+    """
+    if not text or not text.strip():
+        raise HTTPException(status_code=400, detail="Text parameter is required.")
+
+    clean_text = text.strip()
+    cache_key = hashlib.md5(f"{voice}:{rate}:{clean_text}".encode("utf-8")).hexdigest()
+    cache_file = os.path.join(TTS_CACHE_DIR, f"{cache_key}.mp3")
+
+    if os.path.exists(cache_file):
+        with open(cache_file, "rb") as f:
+            audio_bytes = f.read()
+        return Response(content=audio_bytes, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+
+    try:
+        audio_bytes = await generate_speech_bytes(clean_text, voice=voice, rate=rate)
+        with open(cache_file, "wb") as f:
+            f.write(audio_bytes)
+        return Response(content=audio_bytes, media_type="audio/mpeg", headers={"Cache-Control": "public, max-age=86400"})
+    except Exception as e:
+        print(f"[TTS Error] edge-tts generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"TTS generation error: {str(e)}")
+
+
+@app.post("/api/tts")
+async def tts_stream_post(req: TTSRequest):
+    """POST endpoint for Neural TTS audio stream."""
+    return await tts_stream_get(text=req.text, voice=req.voice or "en-US-JennyNeural", rate=req.rate or "-3%")
 
 
 # ---------------------------------------------------------------------

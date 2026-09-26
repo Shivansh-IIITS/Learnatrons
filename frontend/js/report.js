@@ -159,12 +159,12 @@ const strengthsList = document.getElementById('strengthsList');
 strengthsList.innerHTML = '';
 (evalData.strengths || []).forEach(strength => {
     const li = document.createElement('li');
-    li.className = 'flex items-start gap-2 text-xs text-slate-300 leading-relaxed';
+    li.className = 'flex items-start gap-2.5 text-xs text-[#111114] leading-relaxed font-medium';
     li.innerHTML = `
-        <svg class="w-3.5 h-3.5 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        <svg class="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
         </svg>
-        <span>${strength}</span>
+        <span class="text-[#111114] font-medium">${strength}</span>
     `;
     strengthsList.appendChild(li);
 });
@@ -174,12 +174,12 @@ const improvementsList = document.getElementById('improvementsList');
 improvementsList.innerHTML = '';
 (evalData.areas_for_improvement || []).forEach(area => {
     const li = document.createElement('li');
-    li.className = 'flex items-start gap-2 text-xs text-slate-300 leading-relaxed';
+    li.className = 'flex items-start gap-2.5 text-xs text-[#111114] leading-relaxed font-medium';
     li.innerHTML = `
-        <svg class="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        <svg class="w-4 h-4 text-amber-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
         </svg>
-        <span>${area}</span>
+        <span class="text-[#111114] font-medium">${area}</span>
     `;
     improvementsList.appendChild(li);
 });
@@ -191,11 +191,11 @@ const riskLevel = integrity.risk_level || 'Low';
 
 riskEl.textContent = riskLevel;
 if (riskLevel === 'Low') {
-    riskEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+    riskEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 border border-emerald-500/30';
 } else if (riskLevel === 'Medium') {
-    riskEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    riskEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-900 border border-amber-500/30';
 } else {
-    riskEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20';
+    riskEl.className = 'font-bold text-xs px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-900 border border-rose-500/30';
 }
 
 document.getElementById('integrityFlags').textContent = integrity.flags_count || 0;
@@ -206,8 +206,8 @@ const observationsList = document.getElementById('observationsList');
 observationsList.innerHTML = '';
 (evalData.key_observations || []).forEach(obs => {
     const li = document.createElement('li');
-    li.className = 'flex items-start gap-2';
-    li.innerHTML = `<span class="text-blue-400 font-bold mt-0.5">•</span><span>${obs}</span>`;
+    li.className = 'flex items-start gap-2.5 text-xs text-[#111114] leading-relaxed font-medium';
+    li.innerHTML = `<span class="text-indigo-600 font-extrabold mt-0.5">•</span><span class="text-[#111114]">${obs}</span>`;
     observationsList.appendChild(li);
 });
 
@@ -216,7 +216,7 @@ const followUpContainer = document.getElementById('followUpTopics');
 followUpContainer.innerHTML = '';
 (evalData.suggested_follow_up_topics || []).forEach(topic => {
     const tag = document.createElement('span');
-    tag.className = 'bg-blue-500/10 text-blue-400 font-semibold text-xs px-3 py-1 rounded-full border border-blue-500/20';
+    tag.className = 'liquid-glass-subcard text-[#111114] font-bold text-xs px-3.5 py-1.5 rounded-full border border-black/10 shadow-sm';
     tag.textContent = topic;
     followUpContainer.appendChild(tag);
 });
@@ -251,19 +251,19 @@ if (coachingItemsList) {
 
     actionItems.forEach(item => {
         const div = document.createElement('div');
-        div.className = 'bg-[#0d1322] border border-[#1f293d] rounded-xl p-4 flex flex-col justify-between';
+        div.className = 'liquid-glass-subcard p-4 rounded-xl flex flex-col justify-between border border-black/10 shadow-sm';
         div.innerHTML = `
             <div>
-                <span class="text-xs uppercase tracking-wider font-bold text-blue-400">${item.skill_area || 'Focus Area'}</span>
-                <p class="text-xs text-slate-300 mt-1 mb-3 leading-relaxed">${item.action || ''}</p>
+                <span class="text-xs uppercase tracking-wider font-extrabold text-[#111114]">${item.skill_area || 'Focus Area'}</span>
+                <p class="text-xs text-[#33333C] mt-1.5 mb-3 leading-relaxed font-medium">${item.action || ''}</p>
             </div>
             ${item.recommended_resource ? `
-                <div class="pt-2 border-t border-[#1f293d] flex items-center gap-1.5 text-xs text-blue-400">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="pt-2.5 border-t border-black/[0.08] flex items-center gap-1.5 text-xs text-[#111114] font-medium">
+                    <svg class="w-3.5 h-3.5 text-[#111114]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
                     </svg>
-                    <span>Resource:</span>
-                    <span class="font-semibold">${item.recommended_resource}</span>
+                    <span class="text-[#666670]">Resource:</span>
+                    <span class="font-extrabold text-[#111114]">${item.recommended_resource}</span>
                 </div>
             ` : ''}
         `;
@@ -364,19 +364,19 @@ if (submissions && submissions.length > 0 && codingList && codingEmptyMsg) {
     submissions.forEach(sub => {
         const evalRes = sub.evaluation || {};
         const card = document.createElement('div');
-        card.className = 'bg-[#0d1322] border border-[#1f293d] rounded-xl p-4';
+        card.className = 'liquid-glass-subcard p-4 rounded-xl border border-black/10 shadow-sm';
         card.innerHTML = `
             <div class="flex items-center justify-between mb-2">
-                <span class="font-bold text-xs text-white">${sub.problem_title || 'Coding Challenge'}</span>
-                <span class="text-[10px] px-2 py-0.5 rounded font-mono font-bold ${evalRes.status === 'Accepted' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}">
+                <span class="font-extrabold text-xs text-[#111114]">${sub.problem_title || 'Coding Challenge'}</span>
+                <span class="text-[10px] px-2.5 py-0.5 rounded-full font-mono font-bold ${evalRes.status === 'Accepted' ? 'bg-emerald-500/15 text-emerald-800 border border-emerald-500/25' : 'bg-amber-500/15 text-amber-800 border border-amber-500/25'}">
                     ${evalRes.status || 'Evaluated'}
                 </span>
             </div>
-            <div class="grid grid-cols-2 gap-2 text-xs text-slate-400 mb-2 font-mono">
-                <div>Time: <span class="text-white font-bold">${evalRes.time_complexity || 'O(N)'}</span></div>
-                <div>Space: <span class="text-white font-bold">${evalRes.space_complexity || 'O(1)'}</span></div>
+            <div class="grid grid-cols-2 gap-2 text-xs text-[#666670] mb-2 font-mono">
+                <div>Time: <span class="text-[#111114] font-extrabold">${evalRes.time_complexity || 'O(N)'}</span></div>
+                <div>Space: <span class="text-[#111114] font-extrabold">${evalRes.space_complexity || 'O(1)'}</span></div>
             </div>
-            <p class="text-xs text-slate-300 leading-relaxed">${evalRes.feedback || 'Logic successfully submitted and analyzed.'}</p>
+            <p class="text-xs text-[#33333C] leading-relaxed font-medium">${evalRes.feedback || 'Logic successfully submitted and analyzed.'}</p>
         `;
         codingList.appendChild(card);
     });
