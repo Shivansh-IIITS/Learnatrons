@@ -14,8 +14,40 @@ if (!rawEval) {
 
 const evalData = JSON.parse(rawEval);
 
-// ── Incomplete Interview Warning Banner ────────────────────────────────────
-if (evalData.is_incomplete || evalData.overall_rating?.includes('Insufficient') || evalData.overall_rating?.includes('Incomplete')) {
+// ── Conduct Termination & Incomplete Interview Banners ────────────────────
+if (evalData.is_terminated_conduct || evalData.overall_rating?.includes('Terminated') || evalData.overall_rating?.includes('Conduct')) {
+    const banner = document.createElement('div');
+    banner.className = 'bg-rose-500/15 border-2 border-rose-500/40 rounded-2xl p-6 mb-8 fade-in';
+    banner.innerHTML = `
+        <div class="flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-rose-500/25 text-rose-800 flex items-center justify-center shrink-0 border border-rose-500/30">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>
+                </svg>
+            </div>
+            <div>
+                <h2 class="text-base font-extrabold text-rose-950 mb-1">Interview Terminated — Conduct Policy Violation</h2>
+                <p class="text-xs text-rose-900 leading-relaxed font-medium">
+                    This interview was officially terminated before completion because the candidate received <strong class="text-rose-950 font-bold">two conduct warnings</strong> for submitting intentional non-serious, flippant, or troll responses.
+                    Candidate is rated <strong class="text-rose-950 font-bold">Disqualified / Do Not Hire</strong>.
+                </p>
+                <div class="mt-3 flex items-center gap-3">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500/25 text-rose-950 text-xs font-bold">
+                        Disqualified (2 Warnings Reached)
+                    </span>
+                    <a href="index.html" class="inline-flex items-center gap-1.5 btn-liquid-black text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                        </svg>
+                        <span>Start Fresh Interview</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    `;
+    const main = document.querySelector('main');
+    main.insertBefore(banner, main.firstChild.nextSibling);
+} else if (evalData.is_incomplete || evalData.overall_rating?.includes('Insufficient') || evalData.overall_rating?.includes('Incomplete')) {
     const banner = document.createElement('div');
     banner.className = 'bg-rose-500/10 border border-rose-500/25 rounded-2xl p-6 mb-8 fade-in';
     banner.innerHTML = `
