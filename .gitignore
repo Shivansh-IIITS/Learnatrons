@@ -1,0 +1,27 @@
+# Python & Virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment variables & keys
+.env
+
+# Agent harness files
+.agents/
+AGENTS.md
+
+# Deck & draft files
+*.pptx
+SLIDE_CONTENT_FOR_JUDGES.txt
+build_pptx.py
+generate_final_deck.py
+specs.md
+ARCHITECTURE.md
+
+# OS & Editor
+.DS_Store
+.vscode/
+.idea/
