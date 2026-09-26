@@ -15,9 +15,16 @@ const btnSpinner = document.getElementById('btnSpinner');
 const uploadCard = document.getElementById('uploadCard');
 const summaryCard = document.getElementById('summaryCard');
 const startInterviewBtn = document.getElementById('startInterviewBtn');
+const uploadWarningBox = document.getElementById('uploadWarningBox');
+const uploadWarningTitle = document.getElementById('uploadWarningTitle');
+const uploadWarningBadge = document.getElementById('uploadWarningBadge');
+const uploadWarningDesc = document.getElementById('uploadWarningDesc');
+const uploadBlockedBox = document.getElementById('uploadBlockedBox');
+const uploadBlockedDesc = document.getElementById('uploadBlockedDesc');
 
 let selectedFile = null;
 let sessionId = null;
+let uploadWarningsReceived = 0;
 
 // ── File selection ──────────────────────────────────────────────────────────
 dropZone.addEventListener('click', () => fileInput.click());
@@ -48,13 +55,17 @@ fileInput.addEventListener('change', (e) => {
 
 function handleFileSelect(file) {
     selectedFile = file;
+    dropZone.classList.remove('border-rose-500', 'bg-rose-500/5');
     uploadPlaceholder.classList.add('hidden');
     uploadSuccess.classList.remove('hidden');
     fileNameEl.textContent = file.name;
     checkFormValid();
 }
 
-roleInput.addEventListener('input', checkFormValid);
+roleInput.addEventListener('input', () => {
+    roleInput.classList.remove('border-rose-500', 'bg-rose-500/5');
+    checkFormValid();
+});
 
 function checkFormValid() {
     submitBtn.disabled = !(selectedFile && roleInput.value.trim());
@@ -73,6 +84,7 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
     const formData = new FormData();
     formData.append('file', selectedFile);
     formData.append('role', roleInput.value.trim());
+    formData.append('warning_count', uploadWarningsReceived);
 
     try {
         const res = await fetch(`${API_BASE}/api/upload-resume`, {
@@ -81,12 +93,53 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         });
 
         if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.detail || 'Upload failed');
+            const err = await res.json().catch(() => ({}));
+            const detail = err.detail;
+
+            // Handle intentional non-serious content warning / block
+            if (detail && typeof detail === 'object' && detail.warning) {
+                if (detail.blocked) {
+                    // Exceeded allowable warning limit
+                    uploadWarningBox.classList.add('hidden');
+                    uploadBlockedBox.classList.remove('hidden');
+                    uploadBlockedDesc.textContent = detail.message || 'Upload blocked due to repeated non-serious content.';
+                    submitBtn.disabled = true;
+                    btnText.textContent = 'Upload Blocked';
+                    btnSpinner.classList.add('hidden');
+                    return;
+                } else {
+                    // 1st warning issued
+                    uploadWarningsReceived = 1;
+                    uploadWarningBox.classList.remove('hidden');
+                    uploadBlockedBox.classList.add('hidden');
+                    uploadWarningTitle.textContent = `⚠️ Content Warning (${detail.warning_count || 1}/${detail.max_warnings || 1})`;
+                    uploadWarningBadge.textContent = '1 Warning Issued';
+                    uploadWarningDesc.textContent = detail.message || detail.reason || 'Intentional non-serious content detected. Please provide an authentic resume and professional role.';
+                    
+                    if (detail.role_is_serious === false) {
+                        roleInput.classList.add('border-rose-500', 'bg-rose-500/5');
+                    }
+                    if (detail.resume_is_serious === false) {
+                        dropZone.classList.add('border-rose-500', 'bg-rose-500/5');
+                    }
+
+                    submitBtn.disabled = false;
+                    btnText.textContent = 'Re-upload & Validate (Warning 1/1)';
+                    btnSpinner.classList.add('hidden');
+                    return;
+                }
+            }
+
+            const errorMsg = typeof detail === 'string' ? detail : (detail?.message || 'Upload failed. Please try again.');
+            throw new Error(errorMsg);
         }
 
         const data = await res.json();
         sessionId = data.session_id;
+
+        // Hide any previous warnings
+        uploadWarningBox.classList.add('hidden');
+        uploadBlockedBox.classList.add('hidden');
 
         // Store session data for the interview page
         localStorage.setItem('interviewai_session_id', sessionId);
@@ -97,9 +150,9 @@ document.getElementById('uploadForm').addEventListener('submit', async (e) => {
         // Show summary
         displaySummary(data.resume_summary);
     } catch (err) {
-        alert('Error: ' + err.message);
+        alert('Notice: ' + err.message);
         submitBtn.disabled = false;
-        btnText.textContent = 'Upload & Analyze Resume';
+        btnText.textContent = uploadWarningsReceived >= 1 ? 'Re-upload & Validate' : 'Upload & Analyze Resume';
         btnSpinner.classList.add('hidden');
     }
 });
